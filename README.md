@@ -35,7 +35,11 @@ bun install
 bun start
 ```
 
-The middleware runs at http://localhost:3000. To use it, change the middleware URL in `js/overview.js` to `http://localhost:3000/pack/`.
+The middleware runs at http://localhost:3000. To use it, add the `middleware` query parameter to the app URL:
+
+```
+http://localhost:8080?middleware=http://localhost:3000
+```
 
 ## Local Checks
 
