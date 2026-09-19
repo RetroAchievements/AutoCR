@@ -20,12 +20,14 @@ Open http://localhost:8080.
 
 The middleware is a proxy server that logs in to RetroAchievements and gets achievement set data and code notes. To run it locally follow these steps.
 
-First, create `middleware/credentials.js`:
+First, copy _middleware/.env.example_ to _middleware/.env.local_. Then, write your RetroAchievements credentials:
 
-```js
-export const username = 'your-ra-username';
-export const password = 'your-ra-password';
+```shell
+RA_USERNAME=your-ra-username
+RA_PASSWORD=your-ra-password
 ```
+
+Bun reads _.env_ and _.env.local_ automatically.
 
 Then start the middleware:
 

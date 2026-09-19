@@ -1,5 +1,11 @@
 import express from 'express';
-import {username, password} from './credentials.js';
+
+const username = process.env.RA_USERNAME;
+const password = process.env.RA_PASSWORD;
+
+if (!username || !password) {
+	throw new Error('RA_USERNAME and RA_PASSWORD must be set. See middleware/.env.example.');
+}
 
 const app = express();
 app.use((req, res, next) =>
