@@ -66,7 +66,7 @@ app.get('/pack/:id', async (req, res) =>
 	try {
 		const token = await login();
 		const gameid = parseInt(req.params.id, 10);
-		console.log(`[request] pack ${gameid}, ${token}`);
+		console.log(`[request] pack ${gameid}`);
 		
 		let pack = {};
 		pack.game = await doRequest({ r: 'achievementsets', u: username, t: token, g: gameid });
