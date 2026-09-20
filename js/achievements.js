@@ -1005,64 +1005,6 @@ class CodeNoteSet extends Array
 
 		return null;
 	}
-
-	static find_relevant_note_text(full_note, offsets) {
-		let lines = full_note.split(/\r\n|\n/);
-		let current_search_space = lines;
-		let last_found_block = lines; 
-
-		if (offsets.length === 0) {
-			return last_found_block.join('\n');
-		}
-
-		const offset_line_re = /^([.\+\s\u2500-\u257F]*)\+0x([a-f0-9]+)(.*)$/i;
-		let context_indentation = -1;
-
-		for (const target_offset of offsets) {
-			let best_match = { index: -1, indent: Infinity };
-
-			for (let i = 0; i < current_search_space.length; i++) {
-				const line = current_search_space[i];
-				const match = line.match(offset_line_re);
-
-				if (match) {
-					const current_indentation = (match[1] || '').length;
-					const line_offset_val = parseInt(match[2], 16);
-
-					if (line_offset_val === target_offset && current_indentation > context_indentation) {
-						if (current_indentation < best_match.indent) {
-							best_match = { index: i, indent: current_indentation };
-						}
-					}
-				}
-			}
-
-			if (best_match.index === -1) return null;
-
-			const start_index = best_match.index;
-			const start_indentation = best_match.indent;
-			let end_of_block_index = start_index + 1;
-
-			while (end_of_block_index < current_search_space.length) {
-				const next_line = current_search_space[end_of_block_index];
-				const next_match = next_line.match(offset_line_re);
-				if (next_match) {
-					const next_indentation = (next_match[1] || '').length;
-					if (next_indentation <= start_indentation) {
-						break; 
-					}
-				}
-				end_of_block_index++;
-			}
-
-			const found_block = current_search_space.slice(start_index, end_of_block_index);
-			last_found_block = found_block;
-			current_search_space = found_block;
-			context_indentation = start_indentation;
-		}
-		
-		return last_found_block.join('\n');
-	}
 }
 
 // https://github.com/RetroAchievements/RAIntegration/blob/8a26afb6adb27e22c737a6006344abce8f24c21f/tests/data/models/CodeNoteModel_Tests.cpp#L53
@@ -1272,7 +1214,6 @@ class LookupRange
 		this.end = end;
 		this.value = value;
 	}
-	isFallback() { return this.start == null && this.end == null; }
 }
 
 class RichPresence

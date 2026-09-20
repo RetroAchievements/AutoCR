@@ -2273,7 +2273,6 @@ function BadgeGrid({set = current.set})
 		const loadImage = (url) => {
 			return new Promise((resolve) => {
 				const img = new Image();
-				//img.crossOrigin = "Anonymous";
 				img.src = url; 
 
 				img.onload = () => resolve(img);
@@ -2842,26 +2841,6 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
 			</div>
 		);
 	}
-}
-
-let _testIndex = 0;
-function testAchievement(mem)
-{
-	_testIndex += 1;
-	let id = 9000000 + _testIndex;
-	current.set.achievements.set(id, 
-		Achievement.fromJSON({
-			ID: id,
-			Title: `Test Achievement #${_testIndex}`,
-			Description: `Test Achievement #${_testIndex}`,
-			Points: 0,
-			Author: "Test User",
-			Type: "",
-			Flags: 5,
-			MemAddr: mem,
-		})
-	);
-	update();
 }
 
 reset_loaded();
