@@ -2277,7 +2277,6 @@ function BadgeGrid({set = current.set})
 		const loadImage = (url) => {
 			return new Promise((resolve) => {
 				const img = new Image();
-				//img.crossOrigin = "Anonymous";
 				img.src = url; 
 
 				img.onload = () => resolve(img);
@@ -2853,7 +2852,7 @@ function testAchievement(mem)
 {
 	_testIndex += 1;
 	let id = 9000000 + _testIndex;
-	current.set.achievements.set(id, 
+	current.set.achievements.set(id,
 		Achievement.fromJSON({
 			ID: id,
 			Title: `Test Achievement #${_testIndex}`,

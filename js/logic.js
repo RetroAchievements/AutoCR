@@ -228,14 +228,12 @@ class ReqOperand
 			size.padEnd(wMemSize + 1, " ") +
 			this.toString().padEnd(wValue + 1);
 	}
-	toObject() { return {...this}; }
 }
 
 // reversal of comparison
 const CMP_REVERSE = new Map([["=", "!="], ["!=", "="], [">", "<="], ["<", ">="], [">=", "<"], ["<=", ">"]]);
 
 // original regex failed on "v-1"
-// const REQ_RE = /^([A-Z]:)?(.+?)(?:([!<>=+\-*/&\^%]{1,2})(.+?))?(?:\.(\d+)\.)?$/;
 const OPERAND_PARSING = "[~dpbvf]?(?:(?:0x)+[G-Z ]?|f[A-Z])(?:0x)*[0-9A-F]{1,}|[fv]?[-+]?[\\d\\.]+?|[G-Z ]?[0-9A-F]+|{recall}";
 const REQ_RE = new RegExp(`^([A-Z]:)?(${OPERAND_PARSING})(?:([!<>=+\\-*/&\\^%]{1,2})(${OPERAND_PARSING}))?(?:\\.(\\d+)\\.)?$`, "i");
 class Requirement
@@ -432,64 +430,6 @@ class Logic
 // Port of LogicFormatter.cs and ConditionFormatter.cs.
 class LogicFormatter
 {
-	static formatDisplayValue(operand, showDecimal, sizeReference = "")
-	{
-		if (!operand || operand.value === null) return "";
-
-		// Logic to handle Values vs Addresses/Floats
-		// Since operand.value in JS is usually a Number, we handle it directly
-		if (typeof operand.value === 'number')
-		{
-			if (operand.type === ReqType.VALUE)
-			{
-				if (showDecimal) return operand.value.toString();
-				const padding = LogicFormatter.getPaddingForSize(sizeReference);
-				const mask = LogicFormatter.getMaskForSize(sizeReference);
-				
-				// Handle potential negative masking or large numbers
-				let val = operand.value;
-				if (mask !== -1) val = val & mask;
-				
-				// Convert to unsigned for hex display if negative
-				if (val < 0) val = val >>> 0;
-				
-				return "0x" + val.toString(16).padStart(padding, '0');
-			}
-			else if (operand.type !== ReqType.FLOAT)
-			{
-				return "0x" + operand.value.toString(16).padStart(8, '0');
-			}
-		}
-
-		if (operand.type === ReqType.FLOAT)
-		{
-			// operand.value might be string or number
-			return operand.value.toString();
-		}
-		
-		return operand.value.toString();
-	}
-
-	static getPaddingForSize(size)
-	{
-		if (!size) return 8;
-		const name = size.name || size;
-		if (name.includes("8-bit") || name.includes("Bit") || name.includes("4")) return 2;
-		if (name.includes("16-bit")) return 4;
-		if (name.includes("24-bit")) return 6;
-		return 8;
-	}
-
-	static getMaskForSize(size)
-	{
-		if (!size) return -1;
-		const name = size.name || size;
-		if (name.includes("8-bit") || name.includes("Bit") || name.includes("4")) return 0xFF;
-		if (name.includes("16-bit")) return 0xFFFF;
-		if (name.includes("24-bit")) return 0xFFFFFF;
-		return -1;
-	}
-
 	static normalizeAddress(address)
 	{
 		if (address === null || address === undefined) return "";
