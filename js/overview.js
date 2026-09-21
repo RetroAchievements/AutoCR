@@ -4,6 +4,10 @@ const filePicker = document.getElementById('file-picker');
 
 var current = { id: -1, };
 
+// You can point to your own local middleware with ?middleware=http://localhost:3000.
+const MIDDLEWARE_URL = (new URLSearchParams(location.search).get('middleware')
+	?? 'https://autocr-tools.vercel.app').replace(/\/+$/, '');
+
 function clearSelected()
 {
 	for (let e of document.querySelectorAll('#list-body .selected'))
@@ -32,7 +36,7 @@ function reset_loaded()
 }
 
 document.getElementById('unload-set').addEventListener('click', () => {
-	history.pushState(null, '', location.pathname);
+	history.pushState(null, '', location.pathname + location.search);
 	location.reload();
 });
 
@@ -2641,7 +2645,7 @@ function main(event)
 				
 				reset_loaded();
 				document.getElementById("loading-overlay").classList.add('shown');
-				fetch('https://autocr-tools.vercel.app/pack/' + parts[2])
+				fetch(`${MIDDLEWARE_URL}/pack/${parts[2]}`)
 					.then(response => {
 						if (!response.ok)
 							throw new Error(`HTTP error! status: ${response.status}`);
