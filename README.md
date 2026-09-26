@@ -6,12 +6,33 @@ AutoCR is a static web app for analyzing and reviewing data associated with Retr
 
 - [Bun](https://bun.sh/)
 
-## Run locally
 
-Serve the repository root:
+## Install
+The first step is to install the dependencies:
 
 ```shell
-bunx serve . -l 8080
+bun install
+```
+## Run locally
+
+### Dev run
+To get a dev run with hot reload:
+
+```shell
+bun run dev
+```
+
+### Build run
+Build the project:
+
+```shell
+bun run build
+```
+
+Serve the built artifacts:
+
+```shell
+bun run start
 ```
 
 Open http://localhost:8080.

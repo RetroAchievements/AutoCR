@@ -1,3 +1,5 @@
+import { Logic, FormatType, FormatTypeMap, MemSize } from "./logic";
+
 class MemRegion
 {
 	start;
@@ -157,7 +159,7 @@ const ConsoleMap = Object.fromEntries(
 	Object.entries(Console).map(([k, v]) => [v.id, v])
 );
 
-const AssetState = Object.freeze({
+export const AssetState = Object.freeze({
 	CORE: { rank: 0, name: 'core', marker: '', },
 	UNOFFICIAL: { rank: 1, name: 'unofficial', marker: '🚧 '},
 	LOCAL: { rank: 2, name: 'local', marker: '✏️ '},
@@ -186,7 +188,7 @@ class Asset
 	toRefString(){ return `asset-${this.#ref}`; }
 }
 
-class Achievement extends Asset
+export class Achievement extends Asset
 {
 	points = 5;
 	achtype = "";
@@ -238,7 +240,7 @@ class Achievement extends Asset
 	}
 }
 
-class Leaderboard extends Asset
+export class Leaderboard extends Asset
 {
 	static COMPONENT_TAGS = ['STA', 'CAN', 'SUB', 'VAL'];
 
@@ -309,7 +311,7 @@ class Leaderboard extends Asset
 	}
 }
 
-class AchievementSet
+export class AchievementSet
 {
 	id;
 	title = null;
@@ -618,7 +620,7 @@ class PointerTreeParser
 	}
 }
 
-class CodeNote
+export class CodeNote
 {
 	addr;
 	size = 1;
@@ -875,7 +877,7 @@ class CodeNote
 	}
 }
 
-class CodeNoteSet extends Array
+export class CodeNoteSet extends Array
 {
 	clear() { this.length = 0; }
 
@@ -1216,7 +1218,7 @@ class LookupRange
 	}
 }
 
-class RichPresence
+export class RichPresence
 {
 	text = "";
 	

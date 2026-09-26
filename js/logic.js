@@ -1,6 +1,6 @@
-const ReqAddrType = Object.freeze({ VALUE: 0, CURRENT: 1, PAST: 2, });
+export const ReqAddrType = Object.freeze({ VALUE: 0, CURRENT: 1, PAST: 2, });
 
-const ReqType = Object.freeze({
+export const ReqType = Object.freeze({
 	MEM:    { name: "Mem",    prefix: "",         addr: ReqAddrType.CURRENT, cprio: 10, },
 	DELTA:  { name: "Delta",  prefix: "d",        addr: ReqAddrType.PAST,    cprio: 11, },
 	PRIOR:  { name: "Prior",  prefix: "p",        addr: ReqAddrType.PAST,    cprio: 11, },
@@ -19,7 +19,7 @@ const ReqType = Object.freeze({
 	@property scalable: (boolean) can this requirement have a source modification?
 	@property cmod: (boolean) is this a combining modifier flag?
 */
-const ReqFlag = Object.freeze({
+export const ReqFlag = Object.freeze({
 	PAUSEIF:     { name: "PauseIf",      prefix: "P:", chain: false, scalable: false, cmod: false, },
 	RESETIF:     { name: "ResetIf",      prefix: "R:", chain: false, scalable: false, cmod: false, },
 	RESETNEXTIF: { name: "ResetNextIf",  prefix: "Z:", chain: true,  scalable: false, cmod: false, },
@@ -37,9 +37,9 @@ const ReqFlag = Object.freeze({
 	REMEMBER:    { name: "Remember",     prefix: "K:", chain: true,  scalable: true , cmod: false, },
 });
 
-const PAUSERESET = new Set([ReqFlag.RESETIF, ReqFlag.RESETNEXTIF, ReqFlag.PAUSEIF]);
+export const PAUSERESET = new Set([ReqFlag.RESETIF, ReqFlag.RESETNEXTIF, ReqFlag.PAUSEIF]);
 
-const MemSize = Object.freeze({
+export const MemSize = Object.freeze({
 	BYTE:     { name: "8-bit",        prefix: "0xH", bytes: 1, maxvalue: 0xFF, },
 	WORD:     { name: "16-bit",       prefix: "0x",  bytes: 2, maxvalue: 0xFFFF, },
 	TBYTE:    { name: "24-bit",       prefix: "0xW", bytes: 3, maxvalue: 0xFFFFFF, },
@@ -69,7 +69,7 @@ const MemSize = Object.freeze({
 	BITCOUNT: { name: "BitCount",     prefix: "0xK", bytes: 1, maxvalue: 8, },
 });
 
-const FormatType = Object.freeze({
+export const FormatType = Object.freeze({
 	POINTS:        { name: "Score", type: "POINTS", category: "value", },
 	SCORE:         { name: "Score", type: "SCORE", category: "value", },
 	FRAMES:        { name: "Frames", type: "FRAMES", category: "time", },
@@ -97,23 +97,23 @@ const FormatType = Object.freeze({
 	UNICODECHAR:   { name: "UnicodeChar", type: "UNICODECHAR", category: "value", },
 });
 
-const ReqTypeMap = Object.fromEntries(
+export const ReqTypeMap = Object.fromEntries(
 	Object.entries(ReqType).map(([k, v]) => [v.prefix, v])
 );
-const ReqFlagMap = Object.fromEntries(
+export const ReqFlagMap = Object.fromEntries(
 	Object.entries(ReqFlag).map(([k, v]) => [v.prefix, v])
 );
-const MemSizeMap = Object.fromEntries(
+export const MemSizeMap = Object.fromEntries(
 	[].concat(
 		Object.entries(MemSize).map(([k, v]) => [v.prefix, v]),
 		Object.entries(MemSize).map(([k, v]) => [v.prefix.toLowerCase(), v])
 	)
 );
-const FormatTypeMap = Object.fromEntries(
+export const FormatTypeMap = Object.fromEntries(
 	Object.entries(FormatType).map(([k, v]) => [v.type, v])
 );
 
-const BitProficiency = new Set([
+export const BitProficiency = new Set([
 	MemSize.BIT0,
 	MemSize.BIT1,
 	MemSize.BIT2,
@@ -125,7 +125,7 @@ const BitProficiency = new Set([
 	MemSize.BITCOUNT,
 ]);
 
-const PartialAccess = new Set([
+export const PartialAccess = new Set([
 	MemSize.BIT0,
 	MemSize.BIT1,
 	MemSize.BIT2,
@@ -153,7 +153,7 @@ class LogicParseError extends Error {
 }
 
 const OPERAND_RE = /^(([~dpbv]?)((?:0x)+[G-Z ]?|f[A-Z])(?:0x)*([0-9A-F]{1,8}))|(([fv]?)([-+]?[\d\.]+))|([G-Z ]?([0-9A-F]+))|({recall})$/i;
-class ReqOperand
+export class ReqOperand
 {
 	type;
 	value;
@@ -324,7 +324,7 @@ class Requirement
 	}
 }
 
-class Logic
+export class Logic
 {
 	groups = [];
 	mem = null;
@@ -442,7 +442,7 @@ class LogicFormatter
 	}
 }
 
-class ConditionFormatter
+export class ConditionFormatter
 {
 	// Helper to resolve "refer to $0x..." redirects
 	static getEffectiveNote(notesLookup, addrVal)

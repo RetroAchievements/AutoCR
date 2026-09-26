@@ -1,3 +1,5 @@
+import { ReqType, ConditionFormatter } from "./logic";
+
 // --------------------------------------------------
 // Infrastructure & Basic Processors
 // --------------------------------------------------
@@ -2358,7 +2360,7 @@ class AccumulatorProcessor extends LogicProcessor
 // Main Controller
 // --------------------------------------------------
 
-class LogicExplainer
+export class LogicExplainer
 {
 	static processors = [
 		new PointerCleanupProcessor(),

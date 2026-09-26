@@ -1,3 +1,7 @@
+import  { Fragment } from 'react';
+import { BitProficiency, PAUSERESET, ReqFlag, ReqType, ReqAddrType, ReqOperand, ConditionFormatter, PartialAccess, MemSize } from "./logic";
+import { Leaderboard, AssetState, RichPresence } from "./achievements";
+
 function make_title_case(phrase)
 {
 	const TITLE_CASE_MINORS = new Set([
@@ -28,10 +32,10 @@ function make_title_case(phrase)
 	});
 }
 
-function toDisplayHex(addr)
+export function toDisplayHex(addr)
 { return '0x' + addr.toString(16).padStart(8, '0'); }
 
-const FeedbackSeverity = Object.freeze({
+export const FeedbackSeverity = Object.freeze({
 	PASS: 0,
 	INFO: 1,
 	WARN: 2,
@@ -39,9 +43,9 @@ const FeedbackSeverity = Object.freeze({
 	ERROR: 4,
 });
 
-const SEVERITY_TO_CLASS = ['pass', 'info', 'warn', 'fail', 'fail'];
+export const SEVERITY_TO_CLASS = ['pass', 'info', 'warn', 'fail', 'fail'];
 
-const Feedback = Object.freeze({
+export const Feedback = Object.freeze({
 	// writing policy feedback
 	TITLE_CASE: { type: 'writing', severity: FeedbackSeverity.INFO, 
 		desc: "Titles should be written in title case according to the Chicago Manual of Style.",
@@ -307,11 +311,11 @@ class IssueGroup extends Array
 
 	add(x) { return this.push(x); }
 
-	static fromTests(label, tests, param)
+	static fromTests(label, tests, ...param)
 	{
 		let res = new IssueGroup(label);
 		for (const test of tests)
-			for (const issue of test(param))
+			for (const issue of test(...param))
 				res.add(issue);
 		return res;
 	}
@@ -516,13 +520,13 @@ function generate_leaderboard_stats(lb)
 	return stats;
 }
 
-function generate_code_note_stats(notes)
+function generate_code_note_stats(current)
 {
 	let stats = {};
 
 	stats.size_counts = new Map();
 	stats.author_counts = new Map();
-	for (const note of notes)
+	for (const note of current.notes)
 	{
 		stats.author_counts.set(note.author, 1 + (stats.author_counts.get(note.author) ?? 0));
 		if (note.type != null || note.size != 1)
@@ -532,7 +536,7 @@ function generate_code_note_stats(notes)
 		}
 	}
 
-	stats.notes_count = notes.length;
+	stats.notes_count = current.notes.length;
 	let asset_addresses = [
 		...current.set.getAchievements().map(e => ({asset: e, addrs: e.logic.getAddresses()})),
 		...current.set.getLeaderboards().map(e => ({asset: e, addrs: Object.values(e.components).flatMap(cmp => cmp.getAddresses())})),
@@ -544,11 +548,11 @@ function generate_code_note_stats(notes)
 		asset_addresses.push({asset: "Rich Presence", addrs: [...display_cond_addrs, ...lookup_addrs]});
 	}
 
-	notes.forEach(note => {
+	current.notes.forEach(note => {
 		note.assetList = asset_addresses.filter(e => e.addrs.some(x => note.contains(x))).map(e => e.asset);
 	});
 
-	let used_notes = notes.filter(x => x.assetList.length > 0);
+	let used_notes = current.notes.filter(x => x.assetList.length > 0);
 
 	stats.notes_used = used_notes.length;
 	stats.notes_unused = stats.notes_count - stats.notes_used;
@@ -576,14 +580,14 @@ function generate_rich_presence_stats(rp)
 	return stats;
 }
 
-function generate_set_stats(set)
+function generate_set_stats(current)
 {
 	let stats = {};
-	stats.achievement_count = set.achievements.size;
-	stats.leaderboard_count = set.leaderboards.size;
+	stats.achievement_count = current.set.achievements.size;
+	stats.leaderboard_count = current.set.leaderboards.size;
 
-	const achievements = set.getAchievements();
-	const leaderboards = set.getLeaderboards();
+	const achievements = current.set.getAchievements();
+	const leaderboards = current.set.getLeaderboards();
 	
 	let all_logic_stats = [];
 	for (const ach of achievements) all_logic_stats.push(ach.feedback.stats);
@@ -806,7 +810,7 @@ function* check_deltas(logic)
 	yield new Issue(Feedback.IMPROPER_DELTA, null, DELTA_FEEDBACK);
 }
 
-function* check_missing_notes(logic)
+function* check_missing_notes(logic, current)
 {
 	// skip this if notes aren't loaded
 	if (!current.notes.length) return;
@@ -892,7 +896,7 @@ function* check_missing_notes(logic)
 	}
 }
 
-function* check_mismatch_notes(logic)
+function* check_mismatch_notes(logic, current)
 {
 	// skip this if notes aren't loaded
 	if (!current.notes.length) return;
@@ -922,7 +926,7 @@ function* check_mismatch_notes(logic)
 	}
 }
 
-function* check_pointers(logic)
+function* check_pointers(logic, current)
 {
 	// check for pointer comparisons against a value that is non-zero
 	for (const [gi, g] of logic.groups.entries())
@@ -1336,11 +1340,11 @@ function* check_brackets(asset)
 		yield new Issue(Feedback.DESC_BRACKETS, 'desc');
 }
 
-function* check_notes_bad_regions(notes)
+function* check_notes_bad_regions(current)
 {
 	const regions = current.set?.console?.regions || [];
 	let ri = 0;
-	for (let note of notes)
+	for (let note of current.notes)
 	{
 		while (ri < regions.length && note.addr > regions[ri].end) ri++;
 		if (ri >= regions.length) return;
@@ -1370,9 +1374,9 @@ function* check_notes_bad_regions(notes)
 	}
 }
 
-function* check_notes_missing_size(notes)
+function* check_notes_missing_size(current)
 {
-	for (const note of notes)
+	for (const note of current.notes)
 		if (note.type == null && note.size == 1)
 			yield new Issue(Feedback.NOTE_NO_SIZE, note,
 				<ul>
@@ -1381,9 +1385,9 @@ function* check_notes_missing_size(notes)
 }
 
 const NUMERIC_RE = /\b(0x)?([0-9a-f]{2,})\b/gi;
-function* check_notes_enum_hex(notes)
+function* check_notes_enum_hex(current)
 {
-	for (const note of notes) if (note.enum)
+	for (const note of current.notes) if (note.enum)
 	{
 		let found = [];
 		for (const {literal} of note.enum)
@@ -1395,16 +1399,16 @@ function* check_notes_enum_hex(notes)
 			yield new Issue(Feedback.NOTE_ENUM_HEX, note,
 				<ul>
 					<li>Code note at <code className="ref-link" data-ref={note.addr}>{toDisplayHex(note.addr)}</code>: <code>{note.getHeader()}</code></li>
-					<li>Found potential hex values: {found.map((x, i) => <React.Fragment key={i}>
+					<li>Found potential hex values: {found.map((x, i) => <Fragment key={i}>
 						{i == 0 ? '' : ', '} <code>{x}</code>
-					</React.Fragment>)}</li>
+					</Fragment>)}</li>
 				</ul>);
 	}
 }
 
-function* check_notes_enum_size_mismatch(notes)
+function* check_notes_enum_size_mismatch(current)
 {
-	for (const note of notes) if (note.enum && note.type)
+	for (const note of current.notes) if (note.enum && note.type)
 	{
 		let found = [];
 		for (const {literal, value} of note.enum)
@@ -1416,9 +1420,9 @@ function* check_notes_enum_size_mismatch(notes)
 				<ul>
 					<li>Code note at <code className="ref-link" data-ref={note.addr}>{toDisplayHex(note.addr)}</code>: <code>{note.getHeader()}</code></li>
 					<li>The code note is listed as <code>{note.type.name}</code>, which has a max value of <code>0x{(note.type.maxvalue.toString(16).toUpperCase())}</code></li>
-					<li>The following enumerated values are too large for this code note: {found.map((x, i) => <React.Fragment key={i}>
+					<li>The following enumerated values are too large for this code note: {found.map((x, i) => <Fragment key={i}>
 						{i == 0 ? '' : ', '} <code>{x}</code>
-					</React.Fragment>)}</li>
+					</Fragment>)}</li>
 				</ul>
 			);
 	}
@@ -1572,9 +1576,9 @@ function* check_rp_lookups(rp) {
 		
 		let caseCollisions = rp.scriptLookups.filter(x => x !== lookup && x.name.toLowerCase() === lookup.name.toLowerCase() && x.name !== lookup.name);
 		if (caseCollisions.length > 0 && caseCollisions.every(x => lookup.name < x)) {
-			let conflictList = <React.Fragment>{caseCollisions.map((x, i) => 
-				<React.Fragment key={i}>{i == 0 ? '' : ', '} <code>{x}</code></React.Fragment>
-			)}</React.Fragment>;
+			let conflictList = <Fragment>{caseCollisions.map((x, i) => 
+				<Fragment key={i}>{i == 0 ? '' : ', '} <code>{x}</code></Fragment>
+			)}</Fragment>;
 			yield new Issue(Feedback.RP_MACRO_CASE_COLLISION, lookup, <ul>
 				<li>Macro <code>{lookup.name}</code> conflicts with {conflictList}</li>
 			</ul>);
@@ -1668,7 +1672,7 @@ function* check_rp_display_strings(rp) {
 			
 			let exactMatch = rp.scriptLookups.some(x => x.name === part.text);
 			if (!exactMatch) {
-				let suggestion = <React.Fragment></React.Fragment>;
+				let suggestion = <Fragment></Fragment>;
 				let caseMatch = rp.scriptLookups.find(x => x.name.toLowerCase() === part.text.toLowerCase());
 				if (caseMatch) suggestion = <ul>
 						<li><em>Did you mean <code>&#123;{caseMatch.name}&#125;</code>? Macro names are case-sensitive.</em></li>
@@ -1701,7 +1705,7 @@ function* check_rp_dynamic(rp)
 	}
 }
 
-function* check_rp_default(rp)
+function* check_rp_default(rp, current)
 {
 	let defaults = rp.displayStrings.filter(x => x.isDefault);
 	if (defaults.length == 0) {
@@ -1713,13 +1717,13 @@ function* check_rp_default(rp)
 			yield new Issue(Feedback.DYNAMIC_DEFAULT_RP, defaults[0],
 				<ul>
 					<li>Unknown state may produce unreliable output with memory lookups.</li>
-					<li>Consider <code>Playing {get_game_title() ?? "<Game Name>"}</code></li>
+					<li>Consider <code>Playing {current.set.title ?? "<Game Name>"}</code></li>
 				</ul>);
 		}
 	}
 }
 
-function* check_rp_notes(rp)
+function* check_rp_notes(rp, current)
 {
 	function* get_rp_notes_issues(logic, where)
 	{
@@ -1798,22 +1802,22 @@ function* check_source_mod_measured(logic)
 			}
 }
 
-function* check_progression_typing(set)
+function* check_progression_typing(current)
 {
 	// reflect an issue if achievement typing hasn't been added
-	if (!set.getAchievements().some(ach => ach.achtype == 'win_condition') && !set.getAchievements().some(ach => ach.achtype == 'progression'))
+	if (!current.set.getAchievements().some(ach => ach.achtype == 'win_condition') && !current.set.getAchievements().some(ach => ach.achtype == 'progression'))
 		yield new Issue(Feedback.NO_TYPING, null);
-	else if (!set.getAchievements().some(ach => ach.achtype == 'progression'))
+	else if (!current.set.getAchievements().some(ach => ach.achtype == 'progression'))
 		yield new Issue(Feedback.NO_PROGRESSION, null);
 }
 
-function* check_duplicate_text(set)
+function* check_duplicate_text(current)
 {
 	let groups;
 
 	// compare achievement titles
 	groups = new Map();
-	for (const asset of set.getAchievements())
+	for (const asset of current.set.getAchievements())
 	{
 		if (!groups.has(asset.title)) groups.set(asset.title, []);
 		groups.get(asset.title).push(asset);
@@ -1828,7 +1832,7 @@ function* check_duplicate_text(set)
 	
 	// compare achievement descriptions
 	groups = new Map();
-	for (const asset of set.getAchievements())
+	for (const asset of current.set.getAchievements())
 	{
 		if (!groups.has(asset.desc)) groups.set(asset.desc, []);
 		groups.get(asset.desc).push(asset);
@@ -1844,7 +1848,7 @@ function* check_duplicate_text(set)
 
 	// compare achievement titles
 	groups = new Map();
-	for (const asset of set.getLeaderboards())
+	for (const asset of current.set.getLeaderboards())
 	{
 		if (!groups.has(asset.title)) groups.set(asset.title, []);
 		groups.get(asset.title).push(asset);
@@ -1918,79 +1922,79 @@ const LEADERBOARD_TESTS = {
 	'VAL': BASIC_LOGIC_TESTS,
 }
 
-function get_leaderboard_issues(lb)
+function get_leaderboard_issues(lb, current)
 {
 	let res = new IssueGroup("Logic & Design");
 	for (let block of ["START", "CANCEL", "SUBMIT", "VALUE"])
 	{
 		const tag = block.substring(0, 3);
 		for (const test of LEADERBOARD_TESTS[tag])
-			for (const issue of test(lb.components[tag]))
+			for (const issue of test(lb.components[tag], current))
 				res.add(issue);
 	}
 	return res;
 }
 
-function assess_achievement(ach)
+export function assess_achievement(ach, current)
 {
 	let res = new Assessment();
 
 	res.stats = generate_logic_stats(ach.logic);
 
-	res.issues.push(IssueGroup.fromTests("Logic & Design", LOGIC_TESTS, ach.logic));
+	res.issues.push(IssueGroup.fromTests("Logic & Design", LOGIC_TESTS, ach.logic, current));
 	res.issues.push(IssueGroup.fromTests("Presentation & Writing", PRESENTATION_TESTS, ach));
 
 	// attach feedback to the asset
 	return ach.feedback = res;
 }
 
-function assess_leaderboard(lb)
+export function assess_leaderboard(lb, current)
 {
 	let res = new Assessment();
 
 	res.stats = generate_leaderboard_stats(lb);
 
-	res.issues.push(get_leaderboard_issues(lb));
+	res.issues.push(get_leaderboard_issues(lb, current));
 	res.issues.push(IssueGroup.fromTests("Presentation & Writing", PRESENTATION_TESTS, lb));
 
 	// attach feedback to the asset
 	return lb.feedback = res;
 }
 
-function assess_code_notes(notes)
+export function assess_code_notes(current)
 {
 	let res = new Assessment();
 
-	res.stats = generate_code_note_stats(notes);
+	res.stats = generate_code_note_stats(current);
 
-	res.issues.push(IssueGroup.fromTests("Code Notes", CODE_NOTE_TESTS, notes));
+	res.issues.push(IssueGroup.fromTests("Code Notes", CODE_NOTE_TESTS, current));
 
 	// attach feedback to the asset
-	return notes.feedback = res;
+	return current.notes.feedback = res;
 }
 
-function assess_rich_presence(rp)
+export function assess_rich_presence(current)
 {
 	let res = new Assessment();
-	rp ??= new RichPresence(); // if there is no RP, just use a placeholder
+	let rp = current.rp || new RichPresence(); // if there is no RP, just use a placeholder
 
 	res.stats = generate_rich_presence_stats(rp);
-
-	res.issues.push(IssueGroup.fromTests("Logic & Design", RICH_PRESENCE_TESTS, rp));
+	
+	res.issues.push(IssueGroup.fromTests("Logic & Design", RICH_PRESENCE_TESTS, rp, current));
 
 	// attach feedback to the asset
 	// if this was a placeholder, it will fall off here
 	return rp.feedback = res;
 }
 
-function assess_set(set)
+export function assess_set(current)
 {
 	let res = new Assessment();
 
-	res.stats = generate_set_stats(set);
+	res.stats = generate_set_stats(current);
 
-	res.issues.push(IssueGroup.fromTests("Set Design", SET_TESTS, set));
+	res.issues.push(IssueGroup.fromTests("Set Design", SET_TESTS, current));
 
 	// attach feedback to the asset
-	return set.feedback = res;
+	return current.set.feedback = res;
 }
