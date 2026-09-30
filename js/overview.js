@@ -5,12 +5,11 @@ import { Achievement, AchievementSet, CodeNoteSet, RichPresence, CodeNote, Asset
 import { assess_code_notes, assess_achievement, assess_leaderboard, assess_rich_presence, assess_set, SEVERITY_TO_CLASS, Feedback, FeedbackSeverity, toDisplayHex } from './feedback';
 import { Logic, ReqFlag, ConditionFormatter, ReqType, MemSize } from './logic';
 import { LogicExplainer } from './explainer';
+import { current } from './state';
 
 const sidebar = createRoot(document.getElementById('list-body'));
 const container = createRoot(document.getElementById('info-container'));
 const filePicker = document.getElementById('file-picker');
-
-var current = { id: -1, };
 
 function clearSelected()
 {
@@ -2555,19 +2554,19 @@ function update()
 {
 	// assess all code notes
 	current.notes.sort((a, b) => a.addr - b.addr);
-	assess_code_notes(current);
+	assess_code_notes(current.notes);
 
 	// ensure that every achievement and leaderboard has been assessed
 	// don't assume they have already been processed, as code notes might be new
-	for (let ach of current.set.getAchievements()) assess_achievement(ach, current);
-	for (let lb of current.set.getLeaderboards()) assess_leaderboard(lb, current);
+	for (let ach of current.set.getAchievements()) assess_achievement(ach);
+	for (let lb of current.set.getLeaderboards()) assess_leaderboard(lb);
 
 	// assess rich presence
-	assess_rich_presence(current);
+	assess_rich_presence(current.rp);
 
 	// set assessment relies on other assessments for some stats,
 	// so this should always be the last assessment
-	assess_set(current);
+	assess_set(current.set);
 
 	// re-render the sidebar with any newly-loaded assets
 	sidebar.render(<SidebarTabs />);

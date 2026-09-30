@@ -1,0 +1,1 @@
+export const current = { id: -1, };

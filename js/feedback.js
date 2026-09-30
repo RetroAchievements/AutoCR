@@ -1,6 +1,7 @@
 import  { Fragment } from 'react';
 import { BitProficiency, PAUSERESET, ReqFlag, ReqType, ReqAddrType, ReqOperand, ConditionFormatter, PartialAccess, MemSize } from "./logic";
 import { Leaderboard, AssetState, RichPresence } from "./achievements";
+import { current } from './state';
 
 function make_title_case(phrase)
 {
@@ -311,11 +312,11 @@ class IssueGroup extends Array
 
 	add(x) { return this.push(x); }
 
-	static fromTests(label, tests, ...param)
+	static fromTests(label, tests, param)
 	{
 		let res = new IssueGroup(label);
 		for (const test of tests)
-			for (const issue of test(...param))
+			for (const issue of test(param))
 				res.add(issue);
 		return res;
 	}
@@ -520,13 +521,13 @@ function generate_leaderboard_stats(lb)
 	return stats;
 }
 
-function generate_code_note_stats(current)
+function generate_code_note_stats(notes)
 {
 	let stats = {};
 
 	stats.size_counts = new Map();
 	stats.author_counts = new Map();
-	for (const note of current.notes)
+	for (const note of notes)
 	{
 		stats.author_counts.set(note.author, 1 + (stats.author_counts.get(note.author) ?? 0));
 		if (note.type != null || note.size != 1)
@@ -536,7 +537,7 @@ function generate_code_note_stats(current)
 		}
 	}
 
-	stats.notes_count = current.notes.length;
+	stats.notes_count = notes.length;
 	let asset_addresses = [
 		...current.set.getAchievements().map(e => ({asset: e, addrs: e.logic.getAddresses()})),
 		...current.set.getLeaderboards().map(e => ({asset: e, addrs: Object.values(e.components).flatMap(cmp => cmp.getAddresses())})),
@@ -548,11 +549,11 @@ function generate_code_note_stats(current)
 		asset_addresses.push({asset: "Rich Presence", addrs: [...display_cond_addrs, ...lookup_addrs]});
 	}
 
-	current.notes.forEach(note => {
+	notes.forEach(note => {
 		note.assetList = asset_addresses.filter(e => e.addrs.some(x => note.contains(x))).map(e => e.asset);
 	});
 
-	let used_notes = current.notes.filter(x => x.assetList.length > 0);
+	let used_notes = notes.filter(x => x.assetList.length > 0);
 
 	stats.notes_used = used_notes.length;
 	stats.notes_unused = stats.notes_count - stats.notes_used;
@@ -580,14 +581,14 @@ function generate_rich_presence_stats(rp)
 	return stats;
 }
 
-function generate_set_stats(current)
+function generate_set_stats(set)
 {
 	let stats = {};
-	stats.achievement_count = current.set.achievements.size;
-	stats.leaderboard_count = current.set.leaderboards.size;
+	stats.achievement_count = set.achievements.size;
+	stats.leaderboard_count = set.leaderboards.size;
 
-	const achievements = current.set.getAchievements();
-	const leaderboards = current.set.getLeaderboards();
+	const achievements = set.getAchievements();
+	const leaderboards = set.getLeaderboards();
 	
 	let all_logic_stats = [];
 	for (const ach of achievements) all_logic_stats.push(ach.feedback.stats);
@@ -810,7 +811,7 @@ function* check_deltas(logic)
 	yield new Issue(Feedback.IMPROPER_DELTA, null, DELTA_FEEDBACK);
 }
 
-function* check_missing_notes(logic, current)
+function* check_missing_notes(logic)
 {
 	// skip this if notes aren't loaded
 	if (!current.notes.length) return;
@@ -896,7 +897,7 @@ function* check_missing_notes(logic, current)
 	}
 }
 
-function* check_mismatch_notes(logic, current)
+function* check_mismatch_notes(logic)
 {
 	// skip this if notes aren't loaded
 	if (!current.notes.length) return;
@@ -926,7 +927,7 @@ function* check_mismatch_notes(logic, current)
 	}
 }
 
-function* check_pointers(logic, current)
+function* check_pointers(logic)
 {
 	// check for pointer comparisons against a value that is non-zero
 	for (const [gi, g] of logic.groups.entries())
@@ -1340,11 +1341,11 @@ function* check_brackets(asset)
 		yield new Issue(Feedback.DESC_BRACKETS, 'desc');
 }
 
-function* check_notes_bad_regions(current)
+function* check_notes_bad_regions(notes)
 {
 	const regions = current.set?.console?.regions || [];
 	let ri = 0;
-	for (let note of current.notes)
+	for (let note of notes)
 	{
 		while (ri < regions.length && note.addr > regions[ri].end) ri++;
 		if (ri >= regions.length) return;
@@ -1374,9 +1375,9 @@ function* check_notes_bad_regions(current)
 	}
 }
 
-function* check_notes_missing_size(current)
+function* check_notes_missing_size(notes)
 {
-	for (const note of current.notes)
+	for (const note of notes)
 		if (note.type == null && note.size == 1)
 			yield new Issue(Feedback.NOTE_NO_SIZE, note,
 				<ul>
@@ -1385,9 +1386,9 @@ function* check_notes_missing_size(current)
 }
 
 const NUMERIC_RE = /\b(0x)?([0-9a-f]{2,})\b/gi;
-function* check_notes_enum_hex(current)
+function* check_notes_enum_hex(notes)
 {
-	for (const note of current.notes) if (note.enum)
+	for (const note of notes) if (note.enum)
 	{
 		let found = [];
 		for (const {literal} of note.enum)
@@ -1406,9 +1407,9 @@ function* check_notes_enum_hex(current)
 	}
 }
 
-function* check_notes_enum_size_mismatch(current)
+function* check_notes_enum_size_mismatch(notes)
 {
-	for (const note of current.notes) if (note.enum && note.type)
+	for (const note of notes) if (note.enum && note.type)
 	{
 		let found = [];
 		for (const {literal, value} of note.enum)
@@ -1705,7 +1706,7 @@ function* check_rp_dynamic(rp)
 	}
 }
 
-function* check_rp_default(rp, current)
+function* check_rp_default(rp)
 {
 	let defaults = rp.displayStrings.filter(x => x.isDefault);
 	if (defaults.length == 0) {
@@ -1717,13 +1718,13 @@ function* check_rp_default(rp, current)
 			yield new Issue(Feedback.DYNAMIC_DEFAULT_RP, defaults[0],
 				<ul>
 					<li>Unknown state may produce unreliable output with memory lookups.</li>
-					<li>Consider <code>Playing {current.set.title ?? "<Game Name>"}</code></li>
+					<li>Consider <code>Playing {get_game_title() ?? "<Game Name>"}</code></li>
 				</ul>);
 		}
 	}
 }
 
-function* check_rp_notes(rp, current)
+function* check_rp_notes(rp)
 {
 	function* get_rp_notes_issues(logic, where)
 	{
@@ -1802,22 +1803,22 @@ function* check_source_mod_measured(logic)
 			}
 }
 
-function* check_progression_typing(current)
+function* check_progression_typing(set)
 {
 	// reflect an issue if achievement typing hasn't been added
-	if (!current.set.getAchievements().some(ach => ach.achtype == 'win_condition') && !current.set.getAchievements().some(ach => ach.achtype == 'progression'))
+	if (!set.getAchievements().some(ach => ach.achtype == 'win_condition') && !set.getAchievements().some(ach => ach.achtype == 'progression'))
 		yield new Issue(Feedback.NO_TYPING, null);
-	else if (!current.set.getAchievements().some(ach => ach.achtype == 'progression'))
+	else if (!set.getAchievements().some(ach => ach.achtype == 'progression'))
 		yield new Issue(Feedback.NO_PROGRESSION, null);
 }
 
-function* check_duplicate_text(current)
+function* check_duplicate_text(set)
 {
 	let groups;
 
 	// compare achievement titles
 	groups = new Map();
-	for (const asset of current.set.getAchievements())
+	for (const asset of set.getAchievements())
 	{
 		if (!groups.has(asset.title)) groups.set(asset.title, []);
 		groups.get(asset.title).push(asset);
@@ -1832,7 +1833,7 @@ function* check_duplicate_text(current)
 	
 	// compare achievement descriptions
 	groups = new Map();
-	for (const asset of current.set.getAchievements())
+	for (const asset of set.getAchievements())
 	{
 		if (!groups.has(asset.desc)) groups.set(asset.desc, []);
 		groups.get(asset.desc).push(asset);
@@ -1848,7 +1849,7 @@ function* check_duplicate_text(current)
 
 	// compare achievement titles
 	groups = new Map();
-	for (const asset of current.set.getLeaderboards())
+	for (const asset of set.getLeaderboards())
 	{
 		if (!groups.has(asset.title)) groups.set(asset.title, []);
 		groups.get(asset.title).push(asset);
@@ -1922,79 +1923,79 @@ const LEADERBOARD_TESTS = {
 	'VAL': BASIC_LOGIC_TESTS,
 }
 
-function get_leaderboard_issues(lb, current)
+function get_leaderboard_issues(lb)
 {
 	let res = new IssueGroup("Logic & Design");
 	for (let block of ["START", "CANCEL", "SUBMIT", "VALUE"])
 	{
 		const tag = block.substring(0, 3);
 		for (const test of LEADERBOARD_TESTS[tag])
-			for (const issue of test(lb.components[tag], current))
+			for (const issue of test(lb.components[tag]))
 				res.add(issue);
 	}
 	return res;
 }
 
-export function assess_achievement(ach, current)
+export function assess_achievement(ach)
 {
 	let res = new Assessment();
 
 	res.stats = generate_logic_stats(ach.logic);
 
-	res.issues.push(IssueGroup.fromTests("Logic & Design", LOGIC_TESTS, ach.logic, current));
+	res.issues.push(IssueGroup.fromTests("Logic & Design", LOGIC_TESTS, ach.logic));
 	res.issues.push(IssueGroup.fromTests("Presentation & Writing", PRESENTATION_TESTS, ach));
 
 	// attach feedback to the asset
 	return ach.feedback = res;
 }
 
-export function assess_leaderboard(lb, current)
+export function assess_leaderboard(lb)
 {
 	let res = new Assessment();
 
 	res.stats = generate_leaderboard_stats(lb);
 
-	res.issues.push(get_leaderboard_issues(lb, current));
+	res.issues.push(get_leaderboard_issues(lb));
 	res.issues.push(IssueGroup.fromTests("Presentation & Writing", PRESENTATION_TESTS, lb));
 
 	// attach feedback to the asset
 	return lb.feedback = res;
 }
 
-export function assess_code_notes(current)
+export function assess_code_notes(notes)
 {
 	let res = new Assessment();
 
-	res.stats = generate_code_note_stats(current);
+	res.stats = generate_code_note_stats(notes);
 
-	res.issues.push(IssueGroup.fromTests("Code Notes", CODE_NOTE_TESTS, current));
+	res.issues.push(IssueGroup.fromTests("Code Notes", CODE_NOTE_TESTS, notes));
 
 	// attach feedback to the asset
-	return current.notes.feedback = res;
+	return notes.feedback = res;
 }
 
-export function assess_rich_presence(current)
+export function assess_rich_presence(rp)
 {
 	let res = new Assessment();
-	let rp = current.rp || new RichPresence(); // if there is no RP, just use a placeholder
+	rp ??= new RichPresence(); // if there is no RP, just use a placeholder
 
 	res.stats = generate_rich_presence_stats(rp);
-	
-	res.issues.push(IssueGroup.fromTests("Logic & Design", RICH_PRESENCE_TESTS, rp, current));
+
+	res.issues.push(IssueGroup.fromTests("Logic & Design", RICH_PRESENCE_TESTS, rp));
 
 	// attach feedback to the asset
 	// if this was a placeholder, it will fall off here
 	return rp.feedback = res;
 }
 
-export function assess_set(current)
+export function assess_set(set)
 {
 	let res = new Assessment();
 
-	res.stats = generate_set_stats(current);
+	res.stats = generate_set_stats(set);
 
-	res.issues.push(IssueGroup.fromTests("Set Design", SET_TESTS, current));
+	res.issues.push(IssueGroup.fromTests("Set Design", SET_TESTS, set));
 
 	// attach feedback to the asset
-	return current.set.feedback = res;
+	return set.feedback = res;
 }
