@@ -6,16 +6,18 @@ AutoCR is a static web app for analyzing and reviewing data associated with Retr
 
 - [Bun](https://bun.sh/)
 
-
 ## Install
+
 The first step is to install the dependencies:
 
 ```shell
 bun install
 ```
+
 ## Run locally
 
 ### Dev run
+
 To get a dev run with hot reload:
 
 ```shell
@@ -23,6 +25,7 @@ bun run dev
 ```
 
 ### Build run
+
 Build the project:
 
 ```shell
@@ -66,7 +69,11 @@ http://localhost:8080?middleware=http://localhost:3000
 
 ## Local Checks
 
-_test/_ exists, but for now, all testing is local fixtures. There are no automated checks for the time being.
+_test/_ exists, but for now, all testing is local fixtures. [oxfmt](https://oxc.rs/docs/guide/usage/formatter) is used for formatting.
+
+```shell
+bun run format  # autoformat all files
+```
 
 ## Deployment
 

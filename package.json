@@ -1,15 +1,20 @@
 {
   "name": "autocr",
   "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun ./index.html --console",
+    "build": "bun build ./index.html --production --sourcemap=linked --outdir=dist",
+    "start": "bunx serve dist/ -l 8080",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
   "dependencies": {
     "react": "^18",
     "react-dom": "^18"
   },
-  "private": true,
-  "scripts": {
-    "dev": "bun ./index.html --console",
-    "build": "bun build ./index.html --production --sourcemap=linked --outdir=dist",
-    "start": "bunx serve dist/ -l 8080"
-  },
-  "type": "module"
+  "devDependencies": {
+    "oxfmt": "0.71.0"
+  }
 }
