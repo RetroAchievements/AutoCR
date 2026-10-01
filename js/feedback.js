@@ -1,7 +1,7 @@
 import  { Fragment } from 'react';
 import { BitProficiency, PAUSERESET, ReqFlag, ReqType, ReqAddrType, ReqOperand, ConditionFormatter, PartialAccess, MemSize } from "./logic";
 import { Leaderboard, AssetState, RichPresence } from "./achievements";
-import { current } from './state';
+import { current, get_game_title } from './state';
 
 function make_title_case(phrase)
 {

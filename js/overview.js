@@ -5,7 +5,7 @@ import { Achievement, AchievementSet, CodeNoteSet, RichPresence, CodeNote, Asset
 import { assess_code_notes, assess_achievement, assess_leaderboard, assess_rich_presence, assess_set, SEVERITY_TO_CLASS, Feedback, FeedbackSeverity, toDisplayHex } from './feedback';
 import { Logic, ReqFlag, ConditionFormatter, ReqType, MemSize } from './logic';
 import { LogicExplainer } from './explainer';
-import { current } from './state';
+import { current, get_game_title } from './state';
 
 const sidebar = createRoot(document.getElementById('list-body'));
 const container = createRoot(document.getElementById('info-container'));
@@ -132,12 +132,6 @@ function load_files(fileList)
 			};
 		reader.readAsText(file);
 	}
-}
-
-function get_game_title()
-{
-	if (current.set) return current.set.title;
-	return null;
 }
 
 async function copy_to_clipboard(text)
