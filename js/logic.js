@@ -144,6 +144,7 @@ const ReqTypeWidth = Math.max(...Object.values(ReqType).map((x) => x.name.length
 const ReqFlagWidth = Math.max(...Object.values(ReqFlag).map((x) => x.name.length));
 const MemSizeWidth = Math.max(...Object.values(MemSize).map((x) => x.name.length));
 
+// oxlint-disable-next-line no-unused-vars
 class LogicParseError extends Error {
   constructor(type, mem, from) {
     super(`Failed to parse ${type}: ${mem}`);
@@ -153,7 +154,7 @@ class LogicParseError extends Error {
 }
 
 const OPERAND_RE =
-  /^(([~dpbv]?)((?:0x)+[G-Z ]?|f[A-Z])(?:0x)*([0-9A-F]{1,8}))|(([fv]?)([-+]?[\d\.]+))|([G-Z ]?([0-9A-F]+))|({recall})$/i;
+  /^(([~dpbv]?)((?:0x)+[G-Z ]?|f[A-Z])(?:0x)*([0-9A-F]{1,8}))|(([fv]?)([-+]?[\d.]+))|([G-Z ]?([0-9A-F]+))|({recall})$/i;
 export class ReqOperand {
   type;
   value;
@@ -166,19 +167,22 @@ export class ReqOperand {
 
   static fromString(def) {
     try {
-      let match = def.match(OPERAND_RE);
+      const match = def.match(OPERAND_RE);
       // address for memory read
-      if (match[1])
+      if (match[1]) {
         return new ReqOperand({
-          value: parseInt(match[4].trim(), 16),
+          value: Number.parseInt(match[4].trim(), 16),
           type: ReqTypeMap[match[2].trim()],
           size: MemSizeMap[match[3].trim()],
         });
+      }
       // value in decimal/float
       else if (match[5]) {
         // force Value type if no prefix
         let rtype = match[6].trim();
-        if (rtype == "") rtype = "v";
+        if (rtype === "") {
+          rtype = "v";
+        }
 
         return new ReqOperand({
           value: +match[7].trim(),
@@ -186,29 +190,41 @@ export class ReqOperand {
         });
       }
       // value in hex with size info
-      else if (match[8])
+      else if (match[8]) {
         return new ReqOperand({
-          value: parseInt(match[9], 16),
+          value: Number.parseInt(match[9], 16),
           type: ReqType.VALUE,
         });
+      }
       // recall
-      else if (match[10]) return new ReqOperand({ type: ReqType.RECALL });
-    } catch (e) {
-      console.error("operand", def, e);
+      else if (match[10]) {
+        return new ReqOperand({ type: ReqType.RECALL });
+      }
+    } catch (error) {
+      console.error("operand", def, error);
     }
   }
 
   static sameValue(a, b) {
-    if (a == b || a == null || b == null) return a == b;
-    return a.size == b.size && a.value == b.value;
+    if (a == null || b == null) {
+      return a == null && b == null;
+    }
+    if (a === b) {
+      return true;
+    }
+    return a.size === b.size && a.value === b.value;
   }
   static equals(a, b) {
-    return ReqOperand.sameValue(a, b) && a.type == b.type;
+    return ReqOperand.sameValue(a, b) && a.type === b.type;
   }
 
   maxValue() {
-    if (this.type && !this.type.addr) return +this.value;
-    if (this.type == ReqType.RECALL) return Number.POSITIVE_INFINITY;
+    if (this.type && !this.type.addr) {
+      return +this.value;
+    }
+    if (this.type === ReqType.RECALL) {
+      return Number.POSITIVE_INFINITY;
+    }
     return this.size.maxvalue;
   }
 
@@ -218,15 +234,16 @@ export class ReqOperand {
       : "" + this.value;
   }
   toString() {
-    return this.type == ReqType.RECALL ? this.type.prefix : this.toValueString();
+    return this.type === ReqType.RECALL ? this.type.prefix : this.toValueString();
   }
   toAnnotatedString() {
     return (this.type.addr ? `${this.type.name} ` : "") + this.toString();
   }
 
   toMarkdown(wReqType = ReqTypeWidth, wMemSize = MemSizeWidth, wValue = ValueWidth) {
-    let value = "" + (this.value == null ? "" : this.value);
-    let size = this.size ? this.size.name : "";
+    // oxlint-disable-next-line no-unused-vars
+    const value = "" + (this.value == null ? "" : this.value);
+    const size = this.size ? this.size.name : "";
     return (
       this.type.name.padEnd(wReqType + 1, " ") +
       size.padEnd(wMemSize + 1, " ") +
@@ -246,13 +263,12 @@ const CMP_REVERSE = new Map([
 ]);
 
 // original regex failed on "v-1"
-const OPERAND_PARSING =
-  "[~dpbvf]?(?:(?:0x)+[G-Z ]?|f[A-Z])(?:0x)*[0-9A-F]{1,}|[fv]?[-+]?[\\d\\.]+?|[G-Z ]?[0-9A-F]+|{recall}";
+const OPERAND_PARSING = String.raw`[~dpbvf]?(?:(?:0x)+[G-Z ]?|f[A-Z])(?:0x)*[0-9A-F]{1,}|[fv]?[-+]?[\d\.]+?|[G-Z ]?[0-9A-F]+|{recall}`;
 const REQ_RE = new RegExp(
   `^([A-Z]:)?(${OPERAND_PARSING})(?:([!<>=+\\-*/&\\^%]{1,2})(${OPERAND_PARSING}))?(?:\\.(\\d+)\\.)?$`,
   "i",
 );
-class Requirement {
+export class Requirement {
   flag = null;
   lhs;
   op = null;
@@ -280,22 +296,23 @@ class Requirement {
   }
 
   canonicalize() {
-    let res = this.clone();
-    if (res.rhs != null && res.isComparisonOperator())
+    const res = this.clone();
+    if (res.rhs != null && res.isComparisonOperator()) {
       if (res.lhs.type.cprio > res.rhs.type.cprio) // this is backwards
       {
         [res.lhs, res.rhs] = [res.rhs, res.lhs];
         res.op = CMP_REVERSE.get(res.op);
       }
+    }
     return res;
   }
 
   isAlwaysTrue() {
-    return this.op == "=" && ReqOperand.equals(this.lhs, this.rhs);
+    return this.op === "=" && ReqOperand.equals(this.lhs, this.rhs);
   }
   isAlwaysFalse() {
     return (
-      this.op == "=" && // equals cmp
+      this.op === "=" && // equals cmp
       this.lhs &&
       !this.lhs.type.addr && // lhs is a static value
       this.rhs &&
@@ -308,7 +325,9 @@ class Requirement {
     return ["=", "!=", ">", ">=", "<", "<="].includes(this.op);
   }
   reverseComparison() {
-    if (this.isComparisonOperator()) this.op = CMP_REVERSE.get(this.op);
+    if (this.isComparisonOperator()) {
+      this.op = CMP_REVERSE.get(this.op);
+    }
   }
   isModifyingOperator() {
     return this.op && !this.isComparisonOperator();
@@ -318,21 +337,28 @@ class Requirement {
   }
 
   static fromString(def) {
-    let req = new Requirement({});
+    const req = new Requirement({});
     try {
-      let match = def.match(REQ_RE);
+      const match = def.match(REQ_RE);
       req.lhs = ReqOperand.fromString(match[2]);
-      if (match[1]) req.flag = ReqFlagMap[match[1]];
+      if (match[1]) {
+        req.flag = ReqFlagMap[match[1]];
+      }
 
       if (match[3]) {
         req.op = match[3];
-        if (req.flag && req.flag.scalable && req.isComparisonOperator()) req.op = null;
-        else req.rhs = ReqOperand.fromString(match[4]);
+        if (req.flag && req.flag.scalable && req.isComparisonOperator()) {
+          req.op = null;
+        } else {
+          req.rhs = ReqOperand.fromString(match[4]);
+        }
       }
 
-      if (match[5]) req.hits = +match[5];
-    } catch (e) {
-      console.error("requirement", def, e);
+      if (match[5]) {
+        req.hits = +match[5];
+      }
+    } catch (error) {
+      console.error("requirement", def, error);
     }
     return req;
   }
@@ -343,13 +369,15 @@ class Requirement {
     );
   }
   toMarkdown(wReqType, wMemSize, wValue) {
-    let flag = this.flag ? this.flag.name : "";
+    const flag = this.flag ? this.flag.name : "";
     let res = flag.padEnd(ReqFlagWidth + 1, " ");
     res += this.lhs.toMarkdown(wReqType, wMemSize, wValue);
     if (this.op) {
       res += this.op.padEnd(4, " ");
       res += this.rhs.toMarkdown(wReqType, wMemSize, wValue);
-      if (!this.flag || !this.flag.scalable) res += "(" + this.hits + ")";
+      if (!this.flag || !this.flag.scalable) {
+        res += "(" + this.hits + ")";
+      }
     }
     return res;
   }
@@ -362,19 +390,23 @@ export class Logic {
   constructor() {}
 
   static fromString(def, value = null) {
-    let logic = new Logic();
+    const logic = new Logic();
     try {
       logic.value = value == null ? def.includes("$") : !!value;
-      for (const [i, g] of def.split(logic.value ? "$" : /(?<!0x)S/).entries()) {
-        let group = [];
+      for (const g of def.split(logic.value ? "$" : /(?<!0x)S/)) {
+        const group = [];
         if (g.length > 0)
-          // some sets have empty core groups
-          for (const [j, req] of g.split(/_/).entries()) group.push(Requirement.fromString(req));
+        // some sets have empty core groups
+        {
+          for (const req of g.split(/_/)) {
+            group.push(Requirement.fromString(req));
+          }
+        }
         logic.groups.push(group);
       }
       logic.mem = def;
-    } catch (e) {
-      console.error("logic", def, e);
+    } catch (error) {
+      console.error("logic", def, error);
     }
     return logic;
   }
@@ -382,7 +414,7 @@ export class Logic {
   getOperands() {
     return this.groups
       .reduce((ia, ie) => ia.concat(ie.reduce((ja, je) => ja.concat(je.lhs, je.rhs), [])), [])
-      .filter((x) => x);
+      .filter(Boolean);
   }
 
   getAddresses() {
@@ -391,27 +423,31 @@ export class Logic {
         (ia, ie) =>
           ia.concat(
             ie.reduce((ja, je, i, a) => {
-              let p = i == 0 ? null : a[i - 1].flag;
+              const p = i === 0 ? null : a[i - 1].flag;
               return ja.concat({ opd: je.lhs, pre: p }, { opd: je.rhs, pre: p });
             }, []),
           ),
         [],
       )
-      .filter(({ pre }) => pre != ReqFlag.ADDADDRESS) // remove everything following an AddAddress
+      .filter(({ pre }) => pre !== ReqFlag.ADDADDRESS) // remove everything following an AddAddress
       .filter(({ opd }) => opd && opd.type && opd.type.addr) // keep only address reads
       .map(({ opd }) => opd.value);
   }
 
   getMemoryLookups() {
-    let virt = new Set();
-    for (const [gi, g] of this.groups.entries()) {
+    const virt = new Set();
+    for (const g of this.groups) {
       let prefix = "";
-      for (const [ri, req] of g.entries()) {
-        if (req.flag == ReqFlag.ADDADDRESS)
+      for (const req of g) {
+        if (req.flag === ReqFlag.ADDADDRESS) {
           prefix += req.lhs.toString() + (!req.rhs ? "" : req.op + req.rhs.toString()) + ":";
-        else {
-          if (req.lhs && req.lhs.type.addr) virt.add(prefix + req.lhs.toString());
-          if (req.rhs && req.rhs.type.addr) virt.add(prefix + req.rhs.toString());
+        } else {
+          if (req.lhs && req.lhs.type.addr) {
+            virt.add(prefix + req.lhs.toString());
+          }
+          if (req.rhs && req.rhs.type.addr) {
+            virt.add(prefix + req.rhs.toString());
+          }
           prefix = "";
         }
       }
@@ -422,15 +458,15 @@ export class Logic {
   getTypes() {
     return this.getOperands()
       .map((x) => x.type)
-      .filter((x) => x);
+      .filter(Boolean);
   }
   getMemSizes() {
     return this.getOperands()
       .map((x) => x.size)
-      .filter((x) => x);
+      .filter(Boolean);
   }
   getFlags() {
-    return this.groups.reduce((ia, ie) => ia.concat(ie.map((x) => x.flag)), []).filter((x) => x);
+    return this.groups.reduce((ia, ie) => ia.concat(ie.map((x) => x.flag)), []).filter(Boolean);
   }
 
   toMarkdown() {
@@ -442,11 +478,11 @@ export class Logic {
     const wMemSize = Math.max(...this.getMemSizes().map((x) => x.name.length));
 
     for (const g of this.groups) {
-      output += i == 0 ? "### Core\n" : `### Alt ${i}\n`;
+      output += i === 0 ? "### Core\n" : `### Alt ${i}\n`;
       output += "```\n";
       let j = 1;
       for (const req of g) {
-        output += new String(j).padStart(3, " ") + ": ";
+        output += String(j).padStart(3, " ") + ": ";
         output += req.toMarkdown(wReqType, wMemSize, wValue);
         output += "\n";
         j += 1;
@@ -461,14 +497,50 @@ export class Logic {
 // Port of LogicFormatter.cs and ConditionFormatter.cs.
 class LogicFormatter {
   static normalizeAddress(address) {
-    if (address === null || address === undefined) return "";
+    if (address === null || address === undefined) {
+      return "";
+    }
     // In JS, address is typically a Number. If so, return 0xString
-    if (typeof address === "number") return "0x" + address.toString(16).toLowerCase();
+    if (typeof address === "number") {
+      return "0x" + address.toString(16).toLowerCase();
+    }
 
     let clean = address.toString().trim();
-    if (clean.toLowerCase().startsWith("0x")) clean = clean.substring(2);
+    if (clean.toLowerCase().startsWith("0x")) {
+      clean = clean.slice(2);
+    }
     return "0x" + clean.toLowerCase();
   }
+}
+
+function parseOff(s) {
+  let clean = s.replace("+", "").replace("-", "").trim();
+  if (clean.startsWith("0x")) {
+    clean = clean.slice(2);
+  }
+  let v = Number.parseInt(clean, 16);
+  if (s.includes("-")) {
+    v = -v;
+  }
+  return v;
+}
+
+function parseHex(s) {
+  if (typeof s === "number") {
+    return s;
+  }
+  if (!s) {
+    return -1;
+  }
+  const clean = s
+    .replace("0x", "")
+    .trim()
+    .replaceAll(/[^0-9A-Fa-f]/g, "");
+  if (!clean) {
+    return -1;
+  }
+  const val = Number.parseInt(clean, 16);
+  return Number.isNaN(val) ? -1 : val;
 }
 
 export class ConditionFormatter {
@@ -490,7 +562,7 @@ export class ConditionFormatter {
       const match = text.match(/refer to \$0x([0-9a-fA-F]+)/i);
 
       if (match) {
-        const targetAddr = parseInt(match[1], 16);
+        const targetAddr = Number.parseInt(match[1], 16);
         let targetNote = null;
 
         if (notesLookup && typeof notesLookup.get === "function") {
@@ -514,11 +586,13 @@ export class ConditionFormatter {
 
   // Helper: Parse specific value from text (Updated for Floats)
   static parseValueFromText(text, targetVal) {
-    if (!text) return null;
+    if (!text) {
+      return null;
+    }
     const lines = text.split(/\r\n|\r|\n/);
 
     // Updated regex \s*[:=|\-]\s* to support -, | and :
-    const regex = /^\s*((?:0x[0-9a-fA-F]+)|(?:[-+]?[0-9]*\.?[0-9]+))\s*[:=|\-]\s*(.+)$/;
+    const regex = /^\s*((?:0x[0-9a-fA-F]+)|(?:[-+]?[0-9]*\.?[0-9]+))\s*[:=|-]\s*(.+)$/;
 
     // Tolerance for float comparison
     const EPSILON = 0.000001;
@@ -530,19 +604,23 @@ export class ConditionFormatter {
         let lineVal;
 
         if (rawVal.toLowerCase().startsWith("0x")) {
-          lineVal = parseInt(rawVal, 16);
+          lineVal = Number.parseInt(rawVal, 16);
         } else if (rawVal.includes(".")) {
-          lineVal = parseFloat(rawVal);
+          lineVal = Number.parseFloat(rawVal);
         } else {
-          lineVal = parseInt(rawVal, 10);
+          lineVal = Number.parseInt(rawVal, 10);
         }
 
         // Comparison logic
         if (typeof targetVal === "number") {
           if (!Number.isInteger(targetVal) || !Number.isInteger(lineVal)) {
-            if (Math.abs(lineVal - targetVal) < EPSILON) return match[2].trim();
+            if (Math.abs(lineVal - targetVal) < EPSILON) {
+              return match[2].trim();
+            }
           } else {
-            if (lineVal === targetVal) return match[2].trim();
+            if (lineVal === targetVal) {
+              return match[2].trim();
+            }
           }
         }
       }
@@ -552,21 +630,27 @@ export class ConditionFormatter {
 
   // Helper: Parse Bit label
   static parseBitLabelFromText(text, bitIndex) {
-    if (!text) return null;
+    if (!text) {
+      return null;
+    }
     const lines = text.split(/\r\n|\r|\n/);
     // Updated regex to support -, | and :
     const regex = new RegExp(`^\\s*Bit\\s*${bitIndex}\\s*[:=|\\-]\\s*(.+)`, "i");
 
     for (const line of lines) {
       const match = line.match(regex);
-      if (match) return match[1].trim();
+      if (match) {
+        return match[1].trim();
+      }
     }
     return null;
   }
 
   // Resolve Enum OR Bit Values
   static resolveEnum(value, contextAddr, contextSize, notesLookup, chainInfo = []) {
-    if (contextAddr === null || contextAddr === undefined) return null;
+    if (contextAddr === null || contextAddr === undefined) {
+      return null;
+    }
 
     // 1. Determine Base Address and Offsets
     let baseAddr = contextAddr;
@@ -583,7 +667,9 @@ export class ConditionFormatter {
 
     // 2. Get the Base Note
     const note = ConditionFormatter.getEffectiveNote(notesLookup, baseAddr);
-    if (!note) return null;
+    if (!note) {
+      return null;
+    }
 
     // 3. Pointer Traversal Logic
     let targetNode = null;
@@ -593,19 +679,13 @@ export class ConditionFormatter {
       if (note.noteNodes) {
         targetNode = note.noteNodes.find((n) => n.indentLevel === -2) || note.noteNodes[0];
       }
-      if (!targetNode) foundNoteContent = note.note;
+      if (!targetNode) {
+        foundNoteContent = note.note;
+      }
     } else if (note.noteNodes) {
       let currentLevelNodes = note.noteNodes.filter(
         (n) => n.indentLevel !== -2 && (!n.parent || n.parent.indentLevel === -1),
       );
-
-      const parseOff = (s) => {
-        let clean = s.replace("+", "").replace("-", "").trim();
-        if (clean.startsWith("0x")) clean = clean.substring(2);
-        let v = parseInt(clean, 16);
-        if (s.includes("-")) v = -v;
-        return v;
-      };
 
       for (let i = 0; i < offsets.length; i++) {
         const off = offsets[i];
@@ -618,27 +698,36 @@ export class ConditionFormatter {
           }
         }
         if (match) {
-          if (i === offsets.length - 1) targetNode = match;
-          else currentLevelNodes = match.children;
+          if (i === offsets.length - 1) {
+            targetNode = match;
+          } else {
+            currentLevelNodes = match.children;
+          }
         } else {
           break;
         }
       }
     }
 
-    if (targetNode) foundNoteContent = targetNode.content;
+    if (targetNode) {
+      foundNoteContent = targetNode.content;
+    }
 
     // 4. BITFIELD LOGIC
     if (contextSize && contextSize.name && contextSize.name.startsWith("Bit")) {
-      const bitChar = contextSize.name.charAt(contextSize.name.length - 1);
-      const bitIndex = parseInt(bitChar, 10);
+      const bitChar = contextSize.name.at(-1);
+      const bitIndex = Number.parseInt(bitChar, 10);
 
-      if (!isNaN(bitIndex)) {
-        if (value === 0) return "false";
+      if (!Number.isNaN(bitIndex)) {
+        if (value === 0) {
+          return "false";
+        }
         if (value === 1) {
           if (foundNoteContent) {
             const label = ConditionFormatter.parseBitLabelFromText(foundNoteContent, bitIndex);
-            if (label) return label;
+            if (label) {
+              return label;
+            }
           }
           return "true";
         }
@@ -649,7 +738,9 @@ export class ConditionFormatter {
     // Only use pre-parsed if not float
     if (offsets.length === 0 && note.enum && Number.isInteger(value)) {
       const match = note.enum.find((e) => e.value === value);
-      if (match) return match.meaning;
+      if (match) {
+        return match.meaning;
+      }
     }
 
     if (foundNoteContent) {
@@ -660,20 +751,10 @@ export class ConditionFormatter {
   }
 
   static resolveAlias(address, group, rowIndex, notesLookup, rangeCache) {
-    function parseHex(s) {
-      if (typeof s === "number") return s;
-      if (!s) return -1;
-      const clean = s
-        .replace("0x", "")
-        .trim()
-        .replace(/[^0-9A-Fa-f]/g, "");
-      if (!clean) return -1;
-      const val = parseInt(clean, 16);
-      return isNaN(val) ? -1 : val;
-    }
-
     const targetVal = parseHex(address);
-    if (targetVal === -1) return ""; // Safety exit
+    if (targetVal === -1) {
+      return "";
+    } // Safety exit
 
     const conditions = group;
 
@@ -689,7 +770,9 @@ export class ConditionFormatter {
             value: prevCond.lhs.value,
           });
           scan--;
-        } else break;
+        } else {
+          break;
+        }
       }
 
       // Remove Array Indexing (AddAddresses with no note)
@@ -728,14 +811,17 @@ export class ConditionFormatter {
             let match = null;
             for (const node of currentLevelNodes) {
               let nodeOff = parseHex(node.offset.replace("+", "").replace("-", ""));
-              if (node.offset.includes("-")) nodeOff = -nodeOff;
+              if (node.offset.includes("-")) {
+                nodeOff = -nodeOff;
+              }
               if (offsetVal >= nodeOff && offsetVal < nodeOff + node.size) {
                 match = node;
                 break;
               }
             }
-            if (match) currentLevelNodes = match.children;
-            else {
+            if (match) {
+              currentLevelNodes = match.children;
+            } else {
               chainValid = false;
               break;
             }
@@ -744,13 +830,17 @@ export class ConditionFormatter {
           if (chainValid && targetVal !== -1) {
             for (const node of currentLevelNodes) {
               let nodeOff = parseHex(node.offset.replace("+", "").replace("-", ""));
-              if (node.offset.includes("-")) nodeOff = -nodeOff;
+              if (node.offset.includes("-")) {
+                nodeOff = -nodeOff;
+              }
               if (targetVal >= nodeOff && targetVal < nodeOff + node.size) {
-                let desc = node.description.replace(/\[.*?\]/g, "").trim();
+                let desc = node.description.replaceAll(/\[.*?\]/g, "").trim();
                 const delta = targetVal - nodeOff;
                 if (delta > 0) {
                   const suffix = ` +0x${delta.toString(16).toUpperCase()}`;
-                  if (!desc.toLowerCase().endsWith(suffix.toLowerCase())) desc += suffix;
+                  if (!desc.toLowerCase().endsWith(suffix.toLowerCase())) {
+                    desc += suffix;
+                  }
                 }
                 return desc;
               }
@@ -768,11 +858,15 @@ export class ConditionFormatter {
       if (rootNode) {
         let desc = rootNode.description;
         if (!desc || desc.toLowerCase() === "full note") {
-          if (rootNode.content) desc = rootNode.content.split(/\r\n|\r|\n/)[0] || "";
+          if (rootNode.content) {
+            desc = rootNode.content.split(/\r\n|\r|\n/)[0] || "";
+          }
         }
         desc = desc
-          .replace(/\[.*?\]/g, (m) => {
-            if (m.toLowerCase().includes("pointer")) return "[Pointer]";
+          .replaceAll(/\[.*?\]/g, (m) => {
+            if (m.toLowerCase().includes("pointer")) {
+              return "[Pointer]";
+            }
             return "";
           })
           .trim();
@@ -781,10 +875,12 @@ export class ConditionFormatter {
         const delta = targetVal - directNote.addr;
         if (delta > 0) {
           const suffix = ` +0x${delta.toString(16).toUpperCase()}`;
-          if (!desc.toLowerCase().endsWith(suffix.toLowerCase())) desc += suffix;
+          if (!desc.toLowerCase().endsWith(suffix.toLowerCase())) {
+            desc += suffix;
+          }
         }
 
-        return desc.replace(/\s{2,}/g, " ");
+        return desc.replaceAll(/\s{2,}/g, " ");
       }
     }
 
@@ -796,16 +892,20 @@ export class ConditionFormatter {
           desc = match.node.content.split(/\r\n|\r|\n/)[0] || "";
         }
         desc = desc
-          .replace(/\[.*?\]/g, (m) => {
-            if (m.toLowerCase().includes("pointer")) return "[Pointer]";
+          .replaceAll(/\[.*?\]/g, (m) => {
+            if (m.toLowerCase().includes("pointer")) {
+              return "[Pointer]";
+            }
             return "";
           })
           .trim();
-        desc = desc.replace(/\s{2,}/g, " ");
+        desc = desc.replaceAll(/\s{2,}/g, " ");
         const delta = targetVal - match.start;
         if (delta > 0) {
           const suffix = ` +0x${delta.toString(16).toUpperCase()}`;
-          if (!desc.toLowerCase().endsWith(suffix.toLowerCase())) desc += suffix;
+          if (!desc.toLowerCase().endsWith(suffix.toLowerCase())) {
+            desc += suffix;
+          }
         }
         return desc;
       }

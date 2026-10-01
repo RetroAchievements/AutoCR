@@ -1,3 +1,5 @@
+/* oxlint-disable react/static-components */
+
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 import { useEffect, useState, useRef, useLayoutEffect, useMemo, Fragment } from "react";
@@ -35,7 +37,9 @@ const MIDDLEWARE_URL = (
 ).replace(/\/+$/, "");
 
 function clearSelected() {
-  for (let e of document.querySelectorAll("#list-body .selected")) e.classList.remove("selected");
+  for (const e of document.querySelectorAll("#list-body .selected")) {
+    e.classList.remove("selected");
+  }
 }
 
 function scrollTo(elem) {
@@ -44,7 +48,9 @@ function scrollTo(elem) {
 
 function selectTab(tab) {
   const ASSETLIST = document.getElementById("asset-list");
-  for (let x of ASSETLIST.getElementsByClassName("selected")) x.classList.remove("selected");
+  for (const x of ASSETLIST.getElementsByClassName("selected")) {
+    x.classList.remove("selected");
+  }
   tab.classList.add("selected");
 
   scrollTo(tab);
@@ -63,12 +69,14 @@ document.getElementById("unload-set").addEventListener("click", () => {
   location.reload();
 });
 
-let submit_gameid = () => {
+const submit_gameid = () => {
   location.hash = "#!/game/" + document.getElementById("game-id").value;
 };
 document.getElementById("load-game-id").addEventListener("click", submit_gameid);
 document.getElementById("game-id").addEventListener("keyup", ({ key }) => {
-  if (key == "Enter") submit_gameid();
+  if (key === "Enter") {
+    submit_gameid();
+  }
 });
 
 filePicker.addEventListener("change", () => {
@@ -90,23 +98,25 @@ document.ondrop = function (event) {
 
 document.onkeydown = function (event) {
   let handled = true;
-  let crow = document.querySelector(".asset-row.selected");
+  const crow = document.querySelector(".asset-row.selected");
   switch (event.key) {
     case "Up":
     case "ArrowUp":
-      for (let n = crow.previousSibling; n; n = n.previousSibling)
+      for (let n = crow.previousSibling; n; n = n.previousSibling) {
         if (n.classList.contains("asset-row")) {
           n.click();
           break;
         }
+      }
       break;
     case "Down":
     case "ArrowDown":
-      for (let n = crow.nextSibling; n; n = n.nextSibling)
+      for (let n = crow.nextSibling; n; n = n.nextSibling) {
         if (n.classList.contains("asset-row")) {
           n.click();
           break;
         }
+      }
       break;
     default:
       handled = false;
@@ -120,34 +130,35 @@ document.onkeydown = function (event) {
 
 function load_files(fileList) {
   for (const file of fileList) {
-    let idregex = file.name.match(/^(\d+)/);
-    let thisid = +idregex[1] ?? -1;
-    if (thisid != current.id) {
+    const idregex = file.name.match(/^(\d+)/);
+    const thisid = +idregex[1];
+    if (thisid !== current.id) {
       current.id = thisid;
       reset_loaded();
     }
 
-    let reader = new FileReader();
-    if (file.name.endsWith("-Notes.json"))
+    const reader = new FileReader();
+    if (file.name.endsWith("-Notes.json")) {
       reader.onload = function (event) {
-        let data = JSON.parse(event.target.result);
+        const data = JSON.parse(event.target.result);
         load_code_notes(data);
       };
-    else if (file.name.endsWith(".json"))
+    } else if (file.name.endsWith(".json")) {
       reader.onload = function (event) {
-        let data = JSON.parse(event.target.result);
+        const data = JSON.parse(event.target.result);
         load_achievement_set(data);
       };
-    else if (file.name.endsWith("-Rich.txt"))
+    } else if (file.name.endsWith("-Rich.txt")) {
       reader.onload = function (event) {
-        let data = event.target.result;
+        const data = event.target.result;
         load_rich_presence(data, true);
       };
-    else if (file.name.endsWith("-User.txt"))
+    } else if (file.name.endsWith("-User.txt")) {
       reader.onload = function (event) {
-        let data = event.target.result;
+        const data = event.target.result;
         load_user_file(data);
       };
+    }
     reader.readAsText(file);
   }
 }
@@ -203,15 +214,17 @@ const TooltipManager = {
     this.state = {
       visible: true,
       isExiting: false, // Ensure we aren't fading out
-      content: content,
-      targetRect: targetRect,
+      content,
+      targetRect,
     };
     this.notify();
   },
 
   startHide() {
     // Prevent stacking timers
-    if (this.timer) clearTimeout(this.timer);
+    if (this.timer) {
+      clearTimeout(this.timer);
+    }
 
     // 1. Wait the Buffer Time
     this.timer = setTimeout(() => {
@@ -267,7 +280,9 @@ function GlobalTooltip() {
 
   // Perform measurement and positioning whenever content or target changes
   useLayoutEffect(() => {
-    if (!state.visible || !state.targetRect || !tooltipRef.current) return;
+    if (!state.visible || !state.targetRect || !tooltipRef.current) {
+      return;
+    }
 
     const target = state.targetRect;
     const tooltip = tooltipRef.current.getBoundingClientRect();
@@ -277,6 +292,7 @@ function GlobalTooltip() {
     const actualHeight = tooltip.height;
 
     const GAP = 10;
+    // oxlint-disable-next-line no-unused-vars
     const VIEWPORT_WIDTH = window.innerWidth;
     const VIEWPORT_HEIGHT = window.innerHeight;
 
@@ -309,31 +325,41 @@ function GlobalTooltip() {
       topPos -= overflow;
     }
 
-    if (topPos < 10) topPos = 10;
+    if (topPos < 10) {
+      topPos = 10;
+    }
 
     // --- Arrow Logic ---
     let arrowOffset = targetCenterY - topPos;
     const maxArrow = actualHeight - 12;
     const minArrow = 12;
 
-    if (arrowOffset < minArrow) arrowOffset = minArrow;
-    if (arrowOffset > maxArrow) arrowOffset = maxArrow;
+    if (arrowOffset < minArrow) {
+      arrowOffset = minArrow;
+    }
+    if (arrowOffset > maxArrow) {
+      arrowOffset = maxArrow;
+    }
 
     setLayout({
       top: topPos,
       left: leftPos,
-      transform: transform,
-      placement: placement,
-      arrowOffset: arrowOffset,
+      transform,
+      placement,
+      arrowOffset,
       opacity: 1,
     });
   }, [state.visible, state.content, state.targetRect]);
 
-  if (!state.visible || !state.content) return null;
+  if (!state.visible || !state.content) {
+    return null;
+  }
 
   return createPortal(
     <div
       id="global-tooltip-container"
+      onMouseEnter={() => TooltipManager.cancelHide()}
+      onMouseLeave={() => TooltipManager.startHide()}
       ref={tooltipRef}
       style={{
         top: layout.top,
@@ -342,8 +368,6 @@ function GlobalTooltip() {
         opacity: layout.opacity,
         pointerEvents: "auto",
       }}
-      onMouseEnter={() => TooltipManager.cancelHide()}
-      onMouseLeave={() => TooltipManager.startHide()}
     >
       <div
         className={`tooltip-arrow ${layout.placement}`}
@@ -369,7 +393,9 @@ function OperandCells({
   rowIndex = -1,
 }) {
   function OperandValue() {
-    if (operand == null) return null;
+    if (operand == null) {
+      return null;
+    }
 
     // 0. RECALL TYPE
     if (operand.type.name === "Recall") {
@@ -399,7 +425,7 @@ function OperandCells({
 
       if (!displayValue) {
         let memaddr = operand.toValueString();
-        if (chainInfo.length)
+        if (chainInfo.length) {
           memaddr = (
             <Fragment>
               <span className="AddAddressIndicator">[+</span>
@@ -407,6 +433,7 @@ function OperandCells({
               <span className="AddAddressIndicator">]</span>
             </Fragment>
           );
+        }
         displayValue = memaddr;
       }
 
@@ -425,7 +452,9 @@ function OperandCells({
             {displayValue}
           </span>
         );
-      } else return displayValue;
+      } else {
+        return displayValue;
+      }
     }
 
     // 2. VALUE / FLOAT TYPE
@@ -449,9 +478,13 @@ function OperandCells({
 
         if (enumLabel) {
           let rawVal = "";
-          if (operand.type === ReqType.FLOAT) rawVal = Number(operand.value).toFixed(1);
-          else if (typeof operand.value === "number") rawVal = `0x${operand.value.toString(16)}`;
-          else rawVal = operand.value;
+          if (operand.type === ReqType.FLOAT) {
+            rawVal = Number(operand.value).toFixed(1);
+          } else if (typeof operand.value === "number") {
+            rawVal = `0x${operand.value.toString(16)}`;
+          } else {
+            rawVal = operand.value;
+          }
 
           // Apply alias class here too just in case enums get super long
           return (
@@ -494,8 +527,10 @@ function OperandCells({
 }
 
 function LogicGroup({ group, gi, logic, issues, showAliases, collapseAddAddress }) {
-  let header = gi == 0 ? "Core Group" : `Alt Group ${gi}`;
-  if (logic.value) header = `Value Group ${gi + 1}`;
+  let header = gi === 0 ? "Core Group" : `Alt Group ${gi}`;
+  if (logic.value) {
+    header = `Value Group ${gi + 1}`;
+  }
 
   let chain_context = [];
 
@@ -517,7 +552,7 @@ function LogicGroup({ group, gi, logic, issues, showAliases, collapseAddAddress 
         <td>Hits</td>
       </tr>
       {[...group.entries()].map(([ri, req]) => {
-        let match = [...issues.entries()].filter(([_, issue]) => issue.target == req);
+        const match = [...issues.entries()].filter(([_, issue]) => issue.target === req);
         const isAddAddress = req.flag === ReqFlag.ADDADDRESS;
 
         const operand_chain_context_for_this_row = [...chain_context];
@@ -547,15 +582,17 @@ function LogicGroup({ group, gi, logic, issues, showAliases, collapseAddAddress 
 
         // If collapsed, do not render the row at all.
         // This ensures CSS nth-child striping works correctly on visible rows.
-        if (collapseAddAddress && isAddAddress) return null;
+        if (collapseAddAddress && isAddAddress) {
+          return null;
+        }
 
-        const flagClass = req.flag ? "flag-" + req.flag.name.replace(/\s+/g, "") : "";
+        const flagClass = req.flag ? "flag-" + req.flag.name.replaceAll(/\s+/g, "") : "";
 
         return (
           <tr
-            key={`g${gi}-r${ri}`}
-            id={req.toRefString()}
             className={`${match.some(([_, issue]) => issue.severity >= FeedbackSeverity.FAIL) ? "warn" : ""} ${flagClass}`}
+            id={req.toRefString()}
+            key={`g${gi}-r${ri}`}
           >
             <td>
               {ri + 1}{" "}
@@ -570,25 +607,25 @@ function LogicGroup({ group, gi, logic, issues, showAliases, collapseAddAddress 
 
             {/* LHS: Pass group/rowIndex for pointer resolving */}
             <OperandCells
-              operand={req.lhs}
-              skipNote={false}
               chainInfo={operand_chain_context_for_this_row}
-              showAliases={showAliases}
               group={group}
+              operand={req.lhs}
               rowIndex={ri}
+              showAliases={showAliases}
+              skipNote={false}
             />
 
             <td>{req.op ? req.op : ""}</td>
 
             {/* RHS: Pass contextOperand (LHS) for Enum resolution */}
             <OperandCells
-              operand={req.rhs}
-              skipNote={false}
               chainInfo={operand_chain_context_for_this_row}
-              showAliases={showAliases}
               contextOperand={req.lhs}
               group={group}
+              operand={req.rhs}
               rowIndex={ri}
+              showAliases={showAliases}
+              skipNote={false}
             />
 
             <td data-hits={req.hits}>{req.hasHits() ? `(${req.hits})` : ""}</td>
@@ -651,13 +688,13 @@ function LogicTable({ logic, issues = [], isHex = null, toggleHex = null }) {
             // Pass collapseAddAddress down to the group
             return (
               <LogicGroup
-                key={gi}
-                group={g}
-                gi={gi}
-                logic={logic}
-                issues={issues}
-                showAliases={showAliases}
                 collapseAddAddress={collapseAddAddress}
+                gi={gi}
+                group={g}
+                issues={issues}
+                key={gi}
+                logic={logic}
+                showAliases={showAliases}
               />
             );
           })}
@@ -666,38 +703,46 @@ function LogicTable({ logic, issues = [], isHex = null, toggleHex = null }) {
       <div className="logic-panel">
         <div style={{ display: "inline-block", marginRight: "10px" }}>
           <input
-            type="checkbox"
-            id={collapseID}
             checked={collapseAddAddress}
+            id={collapseID}
             onChange={toggleCollapse}
+            type="checkbox"
           ></input>
           <label htmlFor={collapseID}>Collapse AddAddress</label>
         </div>
         <div style={{ display: "inline-block", marginRight: "10px" }}>
           <input
-            type="checkbox"
-            id={aliasID}
             checked={showAliases}
+            id={aliasID}
             onChange={toggleAliases}
+            type="checkbox"
           ></input>
           <label htmlFor={aliasID}>Show Aliases</label>
         </div>
-        <button onClick={handleToggleHex}>Toggle Hex Values</button>
-        <button onClick={() => copy_to_clipboard(logic.toMarkdown())}>Copy Markdown</button>
+        <button onClick={handleToggleHex} type="button">
+          Toggle Hex Values
+        </button>
+        <button onClick={() => copy_to_clipboard(logic.toMarkdown())} type="button">
+          Copy Markdown
+        </button>
       </div>
     </div>
   );
 }
 
 function ConsoleIcon({ console = null }) {
-  if (console == null && current.set) console = current.set.console;
-  if (console == null) return null;
+  if (console == null && current.set) {
+    console = current.set.console;
+  }
+  if (console == null) {
+    return null;
+  }
 
   return (
     <a href={`https://retroachievements.org/system/${console.id}/games`}>
       <img
-        title={console.name}
         src={`https://static.retroachievements.org/assets/images/system/${console.icon}.png`}
+        title={console.name}
       />
     </a>
   );
@@ -705,13 +750,17 @@ function ConsoleIcon({ console = null }) {
 
 function KeywordList({ list, sorted = true }) {
   list = [...list];
-  if (list.length == 0) return <>None</>;
-  if (sorted) list.sort();
+  if (list.length === 0) {
+    return <>None</>;
+  }
+  if (sorted) {
+    list.sort();
+  }
   return (
     <>
       {list.map((x, i) => (
         <Fragment key={x}>
-          {i == 0 ? "" : ", "} <code>{x}</code>
+          {i === 0 ? "" : ", "} <code>{x}</code>
         </Fragment>
       ))}
     </>
@@ -720,7 +769,9 @@ function KeywordList({ list, sorted = true }) {
 
 function LogicStats({ logic, stats = {} }) {
   function LogicOnlyStats() {
-    if (logic && logic.value) return null;
+    if (logic && logic.value) {
+      return null;
+    }
     return (
       <>
         <li>Requirements with hitcounts: {stats.hit_targets}</li>
@@ -791,7 +842,7 @@ function LogicStats({ logic, stats = {} }) {
             .filter(([_, c]) => c > 0)
             .map(([op, c], i) => (
               <Fragment key={op}>
-                {i == 0 ? "" : ", "} <code>{op}</code> ({c})
+                {i === 0 ? "" : ", "} <code>{op}</code> ({c})
               </Fragment>
             ))}
         </li>
@@ -802,7 +853,9 @@ function LogicStats({ logic, stats = {} }) {
 }
 
 function IssueList({ issues = [] }) {
-  if (issues.length == 0) return null;
+  if (issues.length === 0) {
+    return null;
+  }
   return (
     <ul>
       {issues.map((issue, i) => (
@@ -812,11 +865,13 @@ function IssueList({ issues = [] }) {
             <a
               href="#"
               onClick={() => {
-                let ctarget =
-                  typeof issue.target == "string"
+                const ctarget =
+                  typeof issue.target === "string"
                     ? `asset-${issue.target}`
                     : issue.target?.toRefString();
-                if (ctarget) scrollTo(document.getElementById(ctarget));
+                if (ctarget) {
+                  scrollTo(document.getElementById(ctarget));
+                }
               }}
             >
               #{i + 1}
@@ -839,7 +894,9 @@ function IssueList({ issues = [] }) {
 }
 
 function SubFeedback({ issues = [], label = "" }) {
-  if (issues.length == 0) return null;
+  if (issues.length === 0) {
+    return null;
+  }
   return (
     <>
       <h2>{label}</h2>
@@ -849,12 +906,14 @@ function SubFeedback({ issues = [], label = "" }) {
 }
 
 function AssetFeedback({ issues = [] }) {
-  if (!issues.some((x) => x.length > 0)) return null;
+  if (!issues.some((x) => x.length > 0)) {
+    return null;
+  }
   return (
     <div className="feedback">
       <h1>Feedback</h1>
       {issues.map((group, i) => (
-        <SubFeedback key={i} label={group.label} issues={group} />
+        <SubFeedback issues={group} key={i} label={group.label} />
       ))}
     </div>
   );
@@ -876,7 +935,9 @@ function SetBadge({ href = null }) {
 }
 
 function AchievementBadge({ ach, className = "" }) {
-  if (ach == null) return null;
+  if (ach == null) {
+    return null;
+  }
   return (
     <img
       className={"icon " + className}
@@ -895,11 +956,18 @@ function LinkedAchievementBadge({ ach, className = "" }) {
 
 function AssetCard({ asset, warn }) {
   let body = null;
+  // oxlint-disable-next-line @nkzw/no-instanceof
   if (asset instanceof Achievement) {
     let icon = null;
-    if (asset.achtype == "progression") icon = <span title="progression">✅</span>;
-    if (asset.achtype == "win_condition") icon = <span title="win_condition">🏅</span>;
-    if (asset.achtype == "missable") icon = <span title="missable">⚠️</span>;
+    if (asset.achtype === "progression") {
+      icon = <span title="progression">✅</span>;
+    }
+    if (asset.achtype === "win_condition") {
+      icon = <span title="win_condition">🏅</span>;
+    }
+    if (asset.achtype === "missable") {
+      icon = <span title="missable">⚠️</span>;
+    }
     body = (
       <>
         <div>
@@ -915,6 +983,7 @@ function AssetCard({ asset, warn }) {
         </div>
       </>
     );
+    // oxlint-disable-next-line @nkzw/no-instanceof
   } else if (asset instanceof Leaderboard) {
     body = (
       <>
@@ -1002,8 +1071,8 @@ function CollapsibleExplainer({ title = "Logic Analysis", children }) {
 }
 
 function AchievementInfo({ ach }) {
-  let feedback = ach.feedback;
-  let feedback_targets = new Set([].concat(...feedback.issues).map((x) => x.target));
+  const feedback = ach.feedback;
+  const feedback_targets = new Set([].concat(...feedback.issues).map((x) => x.target));
 
   const [isHex, setIsHex] = useState(() => localStorage.getItem("pref-isHex") === "true");
   const toggleHex = () => {
@@ -1020,6 +1089,7 @@ function AchievementInfo({ ach }) {
           <button
             className="float-right"
             onClick={() => copy_to_clipboard(`[${ach.title}](${window.location})`)}
+            type="button"
           >
             Copy Markdown Link
           </button>
@@ -1029,7 +1099,7 @@ function AchievementInfo({ ach }) {
           {ach.points})
         </h2>
         <div className="float-right">
-          <em>{`[${[ach.state.name, ach.achtype].filter((x) => x).join(", ")}]`}</em>
+          <em>{`[${[ach.state.name, ach.achtype].filter(Boolean).join(", ")}]`}</em>
         </div>
         <p id="asset-desc">
           <span className={`${feedback_targets.has("desc") ? "warn" : ""}`}>{ach.desc}</span>
@@ -1042,9 +1112,9 @@ function AchievementInfo({ ach }) {
 
       <div className="data-table">
         <LogicTable
-          logic={ach.logic}
-          issues={feedback.issues}
           isHex={isHex}
+          issues={feedback.issues}
+          logic={ach.logic}
           toggleHex={toggleHex}
         />
       </div>
@@ -1059,8 +1129,8 @@ function AchievementInfo({ ach }) {
 }
 
 function LeaderboardInfo({ lb }) {
-  let feedback = lb.feedback;
-  let feedback_targets = new Set([].concat(...feedback.issues).map((x) => x.target));
+  const feedback = lb.feedback;
+  const feedback_targets = new Set([].concat(...feedback.issues).map((x) => x.target));
 
   const [isHex, setIsHex] = useState(() => localStorage.getItem("pref-isHex") === "true");
   const toggleHex = () => {
@@ -1071,9 +1141,11 @@ function LeaderboardInfo({ lb }) {
 
   const COMPONENTS = ["START", "CANCEL", "SUBMIT", "VALUE"];
 
+  // oxlint-disable-next-line unicorn/consistent-function-scoping
   function LeaderboardComponentStats() {
+    // oxlint-disable-next-line unicorn/consistent-function-scoping
     function SectionStats({ block = null }) {
-      const tag = block.substring(0, 3);
+      const tag = block.slice(0, 3);
       return (
         <Fragment>
           <h2>{block}</h2>
@@ -1092,6 +1164,7 @@ function LeaderboardInfo({ lb }) {
               onClick={() => {
                 setContents(<SectionStats block={b} />);
               }}
+              type="button"
             >
               {b}
             </button>
@@ -1111,7 +1184,7 @@ function LeaderboardInfo({ lb }) {
           📊 <span className={`${feedback_targets.has("title") ? "warn" : ""}`}>{lb.title}</span>
         </h2>
         <div className="float-right">
-          <em>{`[${[lb.state.name].filter((x) => x).join(", ")}]`}</em>
+          <em>{`[${[lb.state.name].filter(Boolean).join(", ")}]`}</em>
         </div>
         <p id="asset-desc">
           <span className={`${feedback_targets.has("desc") ? "warn" : ""}`}>{lb.desc}</span>
@@ -1153,9 +1226,9 @@ function LeaderboardInfo({ lb }) {
           <Fragment key={block}>
             <h3>{block}</h3>
             <LogicTable
-              logic={lb.components[block.substring(0, 3)]}
-              issues={feedback.issues}
               isHex={isHex}
+              issues={feedback.issues}
+              logic={lb.components[block.slice(0, 3)]}
               toggleHex={toggleHex}
             />
           </Fragment>
@@ -1181,31 +1254,45 @@ function LeaderboardInfo({ lb }) {
 }
 
 function ChartCanvas({ setup }) {
-  let graph = useRef();
+  const graph = useRef();
   useEffect(() => {
     setup(graph.current);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <canvas ref={graph} />;
 }
 
 function AchievementSetOverview() {
   const feedback = current.set.feedback;
+  // oxlint-disable-next-line no-unused-vars
   const feedback_targets = new Set([].concat(...feedback.issues).map((x) => x.target));
   const stats = feedback.stats;
 
   function AverageFeedback() {
     const ravg = Math.round(stats.avg_points);
-    if (ravg < 5) return <strong>(low)</strong>;
-    if (ravg < 4) return <strong>(very low)</strong>;
-    if (ravg > 10) return <strong>(high)</strong>;
-    if (ravg > 15) return <strong>(very high)</strong>;
+    if (ravg < 5) {
+      return <strong>(low)</strong>;
+    }
+    if (ravg < 4) {
+      return <strong>(very low)</strong>;
+    }
+    if (ravg > 10) {
+      return <strong>(high)</strong>;
+    }
+    if (ravg > 15) {
+      return <strong>(very high)</strong>;
+    }
     return null;
   }
 
+  // oxlint-disable-next-line unicorn/consistent-function-scoping
   function CodeNotesInfo() {
-    if (current.notes.length == 0) return null;
-    let notestats = current.notes.feedback.stats;
-    let setstats = current.set.feedback.stats;
+    if (current.notes.length === 0) {
+      return null;
+    }
+    // oxlint-disable-next-line no-unused-vars
+    const notestats = current.notes.feedback.stats;
+    const setstats = current.set.feedback.stats;
     return (
       <>
         <li>Code Notes:</li>
@@ -1236,8 +1323,11 @@ function AchievementSetOverview() {
     );
   }
 
+  // oxlint-disable-next-line unicorn/consistent-function-scoping
   function RichPresenceInfo() {
-    if (!current.rp || !current.rp.feedback) return null;
+    if (!current.rp || !current.rp.feedback) {
+      return null;
+    }
     const stats = current.rp.feedback.stats;
     return (
       <>
@@ -1257,7 +1347,9 @@ function AchievementSetOverview() {
   }
 
   function ShowPercentage({ x }) {
-    if (Array.isArray(x)) x = x.length;
+    if (Array.isArray(x)) {
+      x = x.length;
+    }
     return (
       <>
         {x} ({Math.round((100 * x) / stats.achievement_count)}%)
@@ -1268,7 +1360,7 @@ function AchievementSetOverview() {
   const achievements = current.set.getAchievements();
   const leaderboards = current.set.getLeaderboards();
 
-  let set_contents = [
+  const set_contents = [
     [achievements.length, "achievement"],
     [leaderboards.length, "leaderboard"],
   ];
@@ -1282,7 +1374,7 @@ function AchievementSetOverview() {
   );
 
   let setNotReady = null;
-  if (!isSetReady && !achievements.some((ach) => ach.state == AssetState.CORE))
+  if (!isSetReady && !achievements.some((ach) => ach.state === AssetState.CORE)) {
     setNotReady = (
       <div className="set-warning">
         <h2>⚠️ This set may not yet be ready for review ⚠️</h2>
@@ -1292,6 +1384,7 @@ function AchievementSetOverview() {
         </p>
       </div>
     );
+  }
 
   return (
     <>
@@ -1305,7 +1398,7 @@ function AchievementSetOverview() {
           Set contains{" "}
           {set_contents
             .filter(([c, _]) => c)
-            .map(([c, t]) => `${c} ${t}${c == 1 ? "" : "s"}`)
+            .map(([c, t]) => `${c} ${t}${c === 1 ? "" : "s"}`)
             .join(" and ")}
         </p>
       </div>
@@ -1314,7 +1407,7 @@ function AchievementSetOverview() {
         <h3>Achievement Typing</h3>
         <ChartCanvas
           setup={(canvas) => {
-            let chartdata = [...stats.achievement_type.entries()];
+            const chartdata = [...stats.achievement_type.entries()];
             const COLORS = {
               "": "#FBDD70",
               progression: "#8DD7E1",
@@ -1439,6 +1532,14 @@ function AchievementSetOverview() {
   );
 }
 
+function has_issue(assets, warn) {
+  return assets.some((asset) =>
+    asset.feedback.issues.some((g) =>
+      g.some((issue) => warn.includes(issue.type) && issue.severity > FeedbackSeverity.INFO),
+    ),
+  );
+}
+
 function CodeReviewOverview() {
   const feedback = current.set.feedback;
   const stats = feedback.stats;
@@ -1452,27 +1553,19 @@ function CodeReviewOverview() {
     ...leaderboards.map((lb) => lb.feedback.stats["STA"]),
   ];
 
-  let set_contents = [
+  const set_contents = [
     [achievements.length, "achievement"],
     [leaderboards.length, "leaderboard"],
   ];
 
-  function has_issue(assets, warn) {
-    return assets.some((asset) =>
-      asset.feedback.issues.some((g) =>
-        g.some((issue) => warn.includes(issue.type) && issue.severity > FeedbackSeverity.INFO),
-      ),
-    );
-  }
-
-  let pOCA = all_stats.filter((stats) => stats.memlookups.size <= 1) / all_assets.length;
-  let pDelta =
+  const pOCA = all_stats.filter((stats) => stats.memlookups.size <= 1) / all_assets.length;
+  const pDelta =
     all_assets.filter((asset) =>
       asset.feedback.issues.some((g) =>
         g.some((issue) => [Feedback.IMPROPER_DELTA, Feedback.MISSING_DELTA].includes(issue.type)),
       ),
     ) / all_assets.length;
-  let pUUO =
+  const pUUO =
     all_assets.filter((asset) =>
       asset.feedback.issues.some((g) =>
         g.some((issue) =>
@@ -1481,19 +1574,19 @@ function CodeReviewOverview() {
       ),
     ) / all_assets.length;
 
-  let review_row = [
+  const review_row = [
     "",
-    achievements.some((x) => x.achtype == "progression" || x.achtype == "win_condition") ? 1 : 0,
+    achievements.some((x) => x.achtype === "progression" || x.achtype === "win_condition") ? 1 : 0,
     "",
     "",
     "",
     leaderboards.length ? "" : 0,
-    achievements.some((x) => x.achtype != "") ? "" : 1,
+    achievements.some((x) => x.achtype !== "") ? "" : 1,
     "",
     "",
     all_assets.some((asset) =>
       asset.feedback.issues.some((g) =>
-        g.some((issue) => issue.type == "writing" && issue.severity > FeedbackSeverity.INFO),
+        g.some((issue) => issue.type === "writing" && issue.severity > FeedbackSeverity.INFO),
       ),
     )
       ? 0
@@ -1501,13 +1594,13 @@ function CodeReviewOverview() {
     "",
     "",
     "",
-    current.notes.some((note) => note.type != null && note.type != MemSize.BYTE) ? "" : 0,
+    current.notes.some((note) => note.type != null && note.type !== MemSize.BYTE) ? "" : 0,
     current.notes.some((note) => note.note.match(/bit\s?[0-7]/g) != null) ? 1 : 0,
     "",
     current.notes.some((note) => note.isProbablePointer()) ? 1 : "-",
     "",
     current.notes.feedback.issues.some((g) =>
-      g.some((issue) => issue.type == "codenotes" && issue.severity > FeedbackSeverity.INFO),
+      g.some((issue) => issue.type === "codenotes" && issue.severity > FeedbackSeverity.INFO),
     )
       ? 0
       : 1,
@@ -1537,7 +1630,7 @@ function CodeReviewOverview() {
       : has_issue(all_assets, [Feedback.PAUSELOCK_NO_RESET])
         ? 0
         : 1,
-    (current.rp?.display.length == 1 ? 0 : 0.5) + (current.rp?.lookups.size == 0 ? 0 : 0.5),
+    (current.rp?.display.length === 1 ? 0 : 0.5) + (current.rp?.lookups.size === 0 ? 0 : 0.5),
     !leaderboards.length ? "-" : 1,
     pOCA ? (-pOCA).toFixed(1) : "",
     "",
@@ -1599,11 +1692,12 @@ function CodeReviewOverview() {
     "",
   ];
 
+  // oxlint-disable-next-line unicorn/consistent-function-scoping
   function AssetCardList({ assets, label, warn = [] }) {
-    let body = assets.map((asset) => (
+    const body = assets.map((asset) => (
       <AssetCard
-        key={asset.id}
         asset={asset}
+        key={asset.id}
         warn={asset.feedback.issues.some((g) =>
           g.some((issue) => warn.includes(issue.type) && issue.severity > FeedbackSeverity.INFO),
         )}
@@ -1614,7 +1708,7 @@ function CodeReviewOverview() {
       <li>
         <details>
           <summary>
-            {label}: {assets.length} asset{assets.length == 1 ? "" : "s"}
+            {label}: {assets.length} asset{assets.length === 1 ? "" : "s"}
           </summary>
           <ul>{body}</ul>
         </details>
@@ -1645,13 +1739,15 @@ function CodeReviewOverview() {
         <SetBadge />
         <h1 id="asset-title">{get_game_title()}</h1>
         <div className="float-right">
-          <button onClick={(e) => copy_to_clipboard(review_row.join("\t"))}>Review Data</button>
+          <button onClick={(e) => copy_to_clipboard(review_row.join("\t"))} type="button">
+            Review Data
+          </button>
         </div>
         <p>
           Set contains{" "}
           {set_contents
             .filter(([c, _]) => c)
-            .map(([c, t]) => `${c} ${t}${c == 1 ? "" : "s"}`)
+            .map(([c, t]) => `${c} ${t}${c === 1 ? "" : "s"}`)
             .join(" and ")}
         </p>
       </div>
@@ -1705,7 +1801,7 @@ function CodeReviewOverview() {
           <ul>
             <AssetCardList
               assets={achievements.filter((ach) =>
-                ach.feedback.issues.some((g) => g.some((x) => x.type == Feedback.MISSING_DELTA)),
+                ach.feedback.issues.some((g) => g.some((x) => x.type === Feedback.MISSING_DELTA)),
               )}
               label={
                 <>
@@ -1715,7 +1811,7 @@ function CodeReviewOverview() {
             />
             <AssetCardList
               assets={achievements.filter((ach) =>
-                ach.feedback.issues.some((g) => g.some((x) => x.type == Feedback.IMPROPER_DELTA)),
+                ach.feedback.issues.some((g) => g.some((x) => x.type === Feedback.IMPROPER_DELTA)),
               )}
               label={
                 <>
@@ -1878,7 +1974,7 @@ function CodeReviewOverview() {
         <h1>Other Details</h1>
         <ul>
           <AssetCardList
-            assets={achievements.filter((ach) => ach.points == 25)}
+            assets={achievements.filter((ach) => ach.points === 25)}
             label={<>Achievements worth 25 points</>}
             warn={[]}
           />
@@ -1896,20 +1992,23 @@ function CodeReviewOverview() {
 }
 
 function CodeNotesTable({ notes = [], issues = [] }) {
+  // oxlint-disable-next-line unicorn/consistent-function-scoping
   function toDisplayHex(addr) {
     return "0x" + addr.toString(16).padStart(8, "0");
   }
 
+  // oxlint-disable-next-line unicorn/consistent-function-scoping
   function LinkToAsset({ asset }) {
-    let handleclick = (e) => {
+    const handleclick = (e) => {
       jump_to_asset(asset);
       TooltipManager.startHide();
       e.preventDefault();
       return false;
     };
 
-    let route = document.getElementById(asset?.toRefString?.())?.getAttribute("data-route");
-    if (asset instanceof Achievement)
+    const route = document.getElementById(asset?.toRefString?.())?.getAttribute("data-route");
+    // oxlint-disable-next-line @nkzw/no-instanceof
+    if (asset instanceof Achievement) {
       return (
         <>
           🏆{" "}
@@ -1918,7 +2017,8 @@ function CodeNotesTable({ notes = [], issues = [] }) {
           </a>
         </>
       );
-    else if (asset instanceof Leaderboard)
+      // oxlint-disable-next-line @nkzw/no-instanceof
+    } else if (asset instanceof Leaderboard) {
       return (
         <>
           📊{" "}
@@ -1927,7 +2027,9 @@ function CodeNotesTable({ notes = [], issues = [] }) {
           </a>
         </>
       );
-    else return <>{asset}</>;
+    } else {
+      return <>{asset}</>;
+    }
   }
 
   issues = [].concat(...issues);
@@ -1948,9 +2050,9 @@ function CodeNotesTable({ notes = [], issues = [] }) {
         <tbody>
           {notes.map((note) => (
             <tr
-              key={note.addr}
+              className={issues.some((x) => x.target === note) ? "warn" : ""}
               id={note.toRefString()}
-              className={issues.some((x) => x.target == note) ? "warn" : ""}
+              key={note.addr}
             >
               <td>
                 {toDisplayHex(note.addr)}
@@ -1977,9 +2079,9 @@ function CodeNotesTable({ notes = [], issues = [] }) {
                 >
                   <a href={`https://retroachievements.org/user/${note.author}`}>
                     <img
+                      height="24"
                       src={`https://media.retroachievements.org/UserPic/${note.author}.png`}
                       width="24"
-                      height="24"
                     />
                   </a>
                 </span>
@@ -2018,7 +2120,7 @@ function CodeNotesOverview() {
   const feedback_targets = new Set([].concat(...feedback.issues).map((x) => x.target));
   const stats = feedback.stats;
 
-  let authors = new Set(current.notes.map((note) => note.author));
+  const authors = new Set(current.notes.map((note) => note.author));
   const [authState, setAuthState] = useState(
     Object.fromEntries([...authors].map((a) => [a, true])),
   );
@@ -2027,10 +2129,16 @@ function CodeNotesOverview() {
   const [hideUsed, setHideUsed] = useState(false);
 
   let displaynotes = current.notes.filter((note) => authState[note.author]);
-  if (warnsOnly) displaynotes = displaynotes.filter((note) => feedback_targets.has(note));
-  if (hideUnused) displaynotes = displaynotes.filter((note) => note.assetList.length > 0);
-  if (hideUsed) displaynotes = displaynotes.filter((note) => note.assetList.length == 0);
-  let displayissues = feedback.issues.filter(
+  if (warnsOnly) {
+    displaynotes = displaynotes.filter((note) => feedback_targets.has(note));
+  }
+  if (hideUnused) {
+    displaynotes = displaynotes.filter((note) => note.assetList.length > 0);
+  }
+  if (hideUsed) {
+    displaynotes = displaynotes.filter((note) => note.assetList.length === 0);
+  }
+  const displayissues = feedback.issues.filter(
     (issue) => !issue.target || displaynotes.includes(issue.target),
   );
 
@@ -2054,13 +2162,13 @@ function CodeNotesOverview() {
                 {i > 0 ? " | " : ""}
                 <span>
                   <input
-                    type="checkbox"
                     defaultChecked
                     onChange={(e) => {
                       setAuthState(
                         Object.assign({}, authState, { [name]: e.currentTarget.checked }),
                       );
                     }}
+                    type="checkbox"
                   />{" "}
                   <a href={`https://retroachievements.org/user/${name}`}>{name}</a>
                 </span>
@@ -2071,28 +2179,28 @@ function CodeNotesOverview() {
             <label htmlFor="warnsOnly">Only show warnings</label>
             <input
               id="warnsOnly"
-              type="checkbox"
               onChange={(e) => {
                 setWarnsOnly(e.currentTarget.checked);
               }}
+              type="checkbox"
             />
             {" | "}
             <label htmlFor="hideUnused">Hide unused notes</label>
             <input
               id="hideUnused"
-              type="checkbox"
               onChange={(e) => {
                 setHideUnused(e.currentTarget.checked);
               }}
+              type="checkbox"
             />
             {" | "}
             <label htmlFor="hideUsed">Hide used notes</label>
             <input
               id="hideUsed"
-              type="checkbox"
               onChange={(e) => {
                 setHideUsed(e.currentTarget.checked);
               }}
+              type="checkbox"
             />
           </li>
         </ul>
@@ -2102,21 +2210,24 @@ function CodeNotesOverview() {
         className="float-right"
         onClick={() => {
           let delnotes = `1.0.0.0\n${get_game_title()}\n`;
-          for (const note of displaynotes) delnotes += `N0:${toDisplayHex(note.addr)}:""\n`;
+          for (const note of displaynotes) {
+            delnotes += `N0:${toDisplayHex(note.addr)}:""\n`;
+          }
 
-          let e = document.createElement("a");
+          const e = document.createElement("a");
           e.setAttribute("href", "data:text/plaincharset=utf-8," + encodeURIComponent(delnotes));
           e.setAttribute("download", `${current.id}-User.txt`);
 
           e.style.display = "none";
-          document.body.appendChild(e);
+          document.body.append(e);
           e.click();
           document.body.removeChild(e);
         }}
+        type="button"
       >
         Quick Delete
       </button>
-      <CodeNotesTable notes={displaynotes} issues={displayissues} />
+      <CodeNotesTable issues={displayissues} notes={displaynotes} />
 
       <div className="stats">
         <h1>Statistics</h1>
@@ -2151,49 +2262,64 @@ function CodeNotesOverview() {
 
 // --- RICH PRESENCE SIMULATOR & UI ---
 
-function HighlightedRichPresence({ script, onLogicSelected = null }) {
-  if (!script) return null;
+function addLookups(t) {
+  return t.replaceAll(
+    /(@(\S*)\((.+?)\))/gi,
+    '<span class="lookup">@<span class="link">$2</span>(<span class="value logic">$3</span>)</span>',
+  );
+}
 
-  let ref = useRef();
+function HighlightedRichPresence({ script, onLogicSelected = null }) {
+  if (!script) {
+    return null;
+  }
+
+  // oxlint-disable-next-line react-hooks/rules-of-hooks
+  const ref = useRef();
+  // oxlint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    let root = ref.current;
-    for (let elt of root.querySelectorAll(".link"))
+    const root = ref.current;
+    for (const elt of root.querySelectorAll(".link")) {
       elt.onclick = (x) => {
         document
           .getElementById(`def-${elt.innerText}`)
           .scrollIntoView({ behavior: "smooth", block: "nearest" });
       };
+    }
 
-    for (let elt of root.querySelectorAll(".logic"))
+    for (const elt of root.querySelectorAll(".logic")) {
       elt.onclick = (x) => {
-        for (let e2 of root.querySelectorAll(".logic.selected")) e2.classList.remove("selected");
+        for (const e2 of root.querySelectorAll(".logic.selected")) {
+          e2.classList.remove("selected");
+        }
         elt.classList.add("selected");
 
         const logic = Logic.fromString(elt.innerText, elt.classList.contains("value"));
-        if (onLogicSelected) onLogicSelected(logic);
+        if (onLogicSelected) {
+          onLogicSelected(logic);
+        }
       };
+    }
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  function addLookups(t) {
-    return t.replaceAll(
-      /(@(\S*)\((.+?)\))/gi,
-      '<span class="lookup">@<span class="link">$2</span>(<span class="value logic">$3</span>)</span>',
-    );
-  }
 
   let display = false;
   let rptext = script
-    .split(/\r\n|(?!\r\n)[\n-\r\x85\u2028\u2029]/g)
+    .split(/\r\n|(?!\r\n)[\n-\r\u0085\u2028\u2029]/g)
     .map((line) => {
       line = line.trim();
-      if (display)
+      if (display) {
         line = line.startsWith("?")
           ? line.replaceAll(
               /\?(.+)\?(.*)/g,
               (_, p1, p2) => `?<span class="condition logic">${p1}</span>?${addLookups(p2)}`,
             )
           : addLookups(line);
-      if (line.startsWith("Display:")) display = true;
+      }
+      if (line.startsWith("Display:")) {
+        // oxlint-disable-next-line react/immutability
+        display = true;
+      }
       return line;
     })
     .join("\n");
@@ -2205,7 +2331,7 @@ function HighlightedRichPresence({ script, onLogicSelected = null }) {
   return (
     <div className="rich-presence clear">
       <pre>
-        <code ref={ref} dangerouslySetInnerHTML={{ __html: rptext }}></code>
+        <code dangerouslySetInnerHTML={{ __html: rptext }} ref={ref}></code>
       </pre>
     </div>
   );
@@ -2216,10 +2342,13 @@ function formatRPSimulationValue(value, format, parameter, scoreVal) {
 
   if (parameter) {
     let maxVal = 0xffffffff;
-    if (parameter.includes("8-bit") || parameter.includes("Bit") || parameter.includes("4"))
+    if (parameter.includes("8-bit") || parameter.includes("Bit") || parameter.includes("4")) {
       maxVal = 0xff;
-    else if (parameter.includes("16-bit")) maxVal = 0xffff;
-    else if (parameter.includes("24-bit")) maxVal = 0xffffff;
+    } else if (parameter.includes("16-bit")) {
+      maxVal = 0xffff;
+    } else if (parameter.includes("24-bit")) {
+      maxVal = 0xffffff;
+    }
     displayValue = value % (maxVal + 1);
   }
 
@@ -2285,14 +2414,17 @@ function getFormattedPreview(ds, script) {
     UnicodeChar: "UNICODECHAR",
   };
 
-  for (let part of ds.parts) {
+  for (const part of ds.parts) {
     if (part.isMacro) {
-      let lookup = script.scriptLookups.find(
+      const lookup = script.scriptLookups.find(
         (l) => l.name.toLowerCase() === part.text.toLowerCase(),
       );
       if (lookup) {
-        if (lookup.entries.length > 0) sb += lookup.defaultVal || "";
-        else sb += formatRPSimulationValue(0, lookup.format, part.parameter, 0);
+        if (lookup.entries.length > 0) {
+          sb += lookup.defaultVal || "";
+        } else {
+          sb += formatRPSimulationValue(0, lookup.format, part.parameter, 0);
+        }
       } else if (builtInMacros[part.text]) {
         sb += formatRPSimulationValue(0, builtInMacros[part.text], part.parameter, 0);
       } else {
@@ -2302,13 +2434,13 @@ function getFormattedPreview(ds, script) {
       sb += part.text;
     }
   }
-  sb = sb.replace(/\s+/g, " ").trim();
+  sb = sb.replaceAll(/\s+/g, " ").trim();
   return (ds.isDefault ? "[Default] " : "") + sb;
 }
 
 function RARPLivePreview({ script, displayString }) {
   const [tick, setTick] = useState(0);
-  const [score, setScore] = useState(() => Math.floor(Math.random() * 10000));
+  const [score, setScore] = useState(() => Math.floor(Math.random() * 10_000));
   const lookupCache = useRef({});
 
   useEffect(() => {
@@ -2319,12 +2451,13 @@ function RARPLivePreview({ script, displayString }) {
     return () => clearInterval(timer);
   }, [displayString]);
 
-  if (!displayString)
+  if (!displayString) {
     return (
       <div className="rarp-live-preview" style={{ color: "#666" }}>
         No string selected
       </div>
     );
+  }
 
   let previewText = "";
   const builtInMacros = {
@@ -2344,21 +2477,27 @@ function RARPLivePreview({ script, displayString }) {
     UnicodeChar: "UNICODECHAR",
   };
 
-  for (let part of displayString.parts) {
+  for (const part of displayString.parts) {
     if (!part.isMacro) {
       previewText += part.text;
       continue;
     }
 
-    let lookup = script.scriptLookups.find((l) => l.name.toLowerCase() === part.text.toLowerCase());
+    const lookup = script.scriptLookups.find(
+      (l) => l.name.toLowerCase() === part.text.toLowerCase(),
+    );
     if (lookup) {
       if (lookup.entries.length > 0) {
+        // oxlint-disable-next-line react/refs
         if (!lookupCache.current[lookup.name] || tick % 3 === 0) {
-          let randomEntry = lookup.entries[Math.floor(Math.random() * lookup.entries.length)];
+          // oxlint-disable-next-line react/purity
+          const randomEntry = lookup.entries[Math.floor(Math.random() * lookup.entries.length)];
+          // oxlint-disable-next-line react/refs
           lookupCache.current[lookup.name] = randomEntry
             ? randomEntry.value
             : lookup.defaultVal || "";
         }
+        // oxlint-disable-next-line react/refs
         previewText += lookupCache.current[lookup.name];
       } else {
         previewText += formatRPSimulationValue(tick, lookup.format, part.parameter, score);
@@ -2372,6 +2511,28 @@ function RARPLivePreview({ script, displayString }) {
 
   return <div className="rarp-live-preview"> {previewText}</div>;
 }
+
+const getIcon = (severity) => {
+  if (severity >= 3) {
+    return "❌";
+  }
+  if (severity === 2) {
+    return "⚠️";
+  }
+  if (severity === 1) {
+    return "ℹ️";
+  }
+  return "✔️";
+};
+
+const arrowStyle = (isOpen) => ({
+  width: "20px",
+  display: "inline-block",
+  textAlign: "center",
+  fontSize: "10px",
+  transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+  transition: "transform 0.3s ease",
+});
 
 function RARPTreeView({
   script,
@@ -2390,22 +2551,6 @@ function RARPTreeView({
   );
   const lookups = script.scriptLookups.filter((l) => l.entries.length > 0 || l.defaultVal !== null);
 
-  const getIcon = (severity) => {
-    if (severity >= 3) return "❌";
-    if (severity === 2) return "⚠️";
-    if (severity === 1) return "ℹ️";
-    return "✔️";
-  };
-
-  const arrowStyle = (isOpen) => ({
-    width: "20px",
-    display: "inline-block",
-    textAlign: "center",
-    fontSize: "10px",
-    transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
-    transition: "transform 0.3s ease",
-  });
-
   return (
     <div className="rarp-sidebar" style={{ flexBasis: sidebarWidth }}>
       <div className="rarp-tree-group" onClick={() => toggle("lookups")}>
@@ -2414,12 +2559,12 @@ function RARPTreeView({
       <div className={`explainer-anim-wrapper ${expanded.lookups ? "open" : ""}`}>
         <div className="explainer-anim-inner">
           {lookups.map((l, i) => {
-            let sev = lookupSeverities[i] || 0;
-            let icon = getIcon(sev);
+            const sev = lookupSeverities[i] || 0;
+            const icon = getIcon(sev);
             return (
               <div
-                key={`l-${i}`}
                 className={`rarp-tree-node ${i % 2 === 0 ? "striped" : ""} ${selectedItem.type === "lookup" && selectedItem.index === i ? "selected" : ""}`}
+                key={`l-${i}`}
                 onClick={() => setSelectedItem({ type: "lookup", index: i, macro: "Condition" })}
                 title={l.name}
               >
@@ -2437,12 +2582,12 @@ function RARPTreeView({
       <div className={`explainer-anim-wrapper ${expanded.formatters ? "open" : ""}`}>
         <div className="explainer-anim-inner">
           {formatters.map((f, i) => {
-            let sev = formatterSeverities[i] || 0;
-            let icon = getIcon(sev);
+            const sev = formatterSeverities[i] || 0;
+            const icon = getIcon(sev);
             return (
               <div
-                key={`f-${i}`}
                 className={`rarp-tree-node ${i % 2 === 0 ? "striped" : ""} ${selectedItem.type === "formatter" && selectedItem.index === i ? "selected" : ""}`}
+                key={`f-${i}`}
                 onClick={() => setSelectedItem({ type: "formatter", index: i, macro: "Condition" })}
                 title={f.name}
               >
@@ -2460,15 +2605,17 @@ function RARPTreeView({
       <div className={`explainer-anim-wrapper ${expanded.display ? "open" : ""}`}>
         <div className="explainer-anim-inner">
           {script.displayStrings.map((ds, i) => {
-            let displayTitle = getFormattedPreview(ds, script);
-            let sev = dsSeverities[i] || 0;
+            const displayTitle = getFormattedPreview(ds, script);
+            const sev = dsSeverities[i] || 0;
             let icon = getIcon(sev);
-            if (ds.isDefault && sev === 0) icon = "⭐";
+            if (ds.isDefault && sev === 0) {
+              icon = "⭐";
+            }
 
             return (
               <div
-                key={`d-${i}`}
                 className={`rarp-tree-node ${i % 2 === 0 ? "striped" : ""} ${selectedItem.type === "display" && selectedItem.index === i ? "selected" : ""}`}
+                key={`d-${i}`}
                 onClick={() => setSelectedItem({ type: "display", index: i, macro: "Condition" })}
                 title={displayTitle}
               >
@@ -2494,18 +2641,26 @@ function RARPDisplayEditor({ ds, isHex, toggleHex, selectedItem, setSelectedItem
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (!isDragging) return;
+      if (!isDragging) {
+        return;
+      }
       // Estimate percentage based on window width minus sidebar
       const containerWidth = document.querySelector(".rarp-top-row").offsetWidth;
       const containerLeft = document.querySelector(".rarp-top-row").getBoundingClientRect().left;
       let newPct = ((e.clientX - containerLeft) / containerWidth) * 100;
-      if (newPct < 20) newPct = 20;
-      if (newPct > 80) newPct = 80;
+      if (newPct < 20) {
+        newPct = 20;
+      }
+      if (newPct > 80) {
+        newPct = 80;
+      }
       setTemplateWidth(newPct);
     };
 
     const handleMouseUp = () => {
-      if (isDragging) setIsDragging(false);
+      if (isDragging) {
+        setIsDragging(false);
+      }
     };
 
     if (isDragging) {
@@ -2531,7 +2686,7 @@ function RARPDisplayEditor({ ds, isHex, toggleHex, selectedItem, setSelectedItem
   if (selectedLogic === "Condition") {
     tableContent = ds.condition ? (
       <div className="data-table">
-        <LogicTable logic={ds.condition} isHex={isHex} toggleHex={toggleHex} />
+        <LogicTable isHex={isHex} logic={ds.condition} toggleHex={toggleHex} />
       </div>
     ) : (
       <div style={{ padding: "15px", color: "#888", fontStyle: "italic" }}>
@@ -2544,13 +2699,15 @@ function RARPDisplayEditor({ ds, isHex, toggleHex, selectedItem, setSelectedItem
       let macroLogic;
       try {
         macroLogic = Logic.fromString(targetMacro.parameter, true);
-      } catch (e) {}
+      } catch {
+        //
+      }
 
       tableContent = (
         <div>
           {macroLogic ? (
             <div className="data-table">
-              <LogicTable logic={macroLogic} isHex={isHex} toggleHex={toggleHex} />
+              <LogicTable isHex={isHex} logic={macroLogic} toggleHex={toggleHex} />
             </div>
           ) : (
             <div style={{ padding: "15px", color: "red" }}>Invalid logic</div>
@@ -2590,7 +2747,7 @@ function RARPDisplayEditor({ ds, isHex, toggleHex, selectedItem, setSelectedItem
         >
           <div className="rarp-panel-header">Live Preview Panel</div>
           <div className="rarp-panel-content">
-            <RARPLivePreview script={current.rp} displayString={ds} />
+            <RARPLivePreview displayString={ds} script={current.rp} />
           </div>
         </div>
       </div>
@@ -2598,7 +2755,7 @@ function RARPDisplayEditor({ ds, isHex, toggleHex, selectedItem, setSelectedItem
       <div className="rarp-panel" style={{ flex: "2" }}>
         <div className="rarp-panel-header">Logic Explorer</div>
         <div className="rarp-logic-toolbar">
-          <select className="rarp-logic-select" value={selectedLogic} onChange={handleLogicChange}>
+          <select className="rarp-logic-select" onChange={handleLogicChange} value={selectedLogic}>
             <option value="Condition">Condition</option>
             {macroNames.map((m) => (
               <option key={m} value={m}>
@@ -2618,14 +2775,16 @@ function RARPDisplayEditor({ ds, isHex, toggleHex, selectedItem, setSelectedItem
 function RARPDetailView({ script, selectedItem, setSelectedItem, isHex, toggleHex }) {
   if (selectedItem.type === "display") {
     const ds = script.displayStrings[selectedItem.index];
-    if (!ds) return null;
+    if (!ds) {
+      return null;
+    }
     return (
       <RARPDisplayEditor
         ds={ds}
         isHex={isHex}
-        toggleHex={toggleHex}
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
+        toggleHex={toggleHex}
       />
     );
   }
@@ -2637,7 +2796,9 @@ function RARPDetailView({ script, selectedItem, setSelectedItem, isHex, toggleHe
 
   const item =
     selectedItem.type === "lookup" ? lookups[selectedItem.index] : formatters[selectedItem.index];
-  if (!item) return null;
+  if (!item) {
+    return null;
+  }
 
   return (
     <div className="rarp-main" id={item.toRefString()}>
@@ -2700,21 +2861,34 @@ function RARPDetailView({ script, selectedItem, setSelectedItem, isHex, toggleHe
 }
 
 // Extract text from React detail elements to map null-target issues
+// oxlint-disable-next-line no-unused-vars
 function extractReactText(node) {
-  if (!node) return "";
-  if (typeof node === "string") return node;
-  if (Array.isArray(node)) return node.map(extractReactText).join("");
-  if (node.props && node.props.children) return extractReactText(node.props.children);
+  if (!node) {
+    return "";
+  }
+  if (typeof node === "string") {
+    return node;
+  }
+  if (Array.isArray(node)) {
+    return node.map(extractReactText).join("");
+  }
+  if (node.props && node.props.children) {
+    return extractReactText(node.props.children);
+  }
   return "";
 }
 
 function RPAssetFeedback({ issues, onIssueClick }) {
-  if (!issues || issues.length === 0 || !issues.some((g) => g.length > 0)) return null;
+  if (!issues || issues.length === 0 || !issues.some((g) => g.length > 0)) {
+    return null;
+  }
   return (
     <div className="feedback">
       <h1>Feedback</h1>
       {issues.map((group, i) => {
-        if (!group || group.length === 0) return null;
+        if (!group || group.length === 0) {
+          return null;
+        }
         return (
           <Fragment key={i}>
             <h2>{group.label}</h2>
@@ -2741,7 +2915,7 @@ function RPAssetFeedback({ issues, onIssueClick }) {
                     <Fragment key={k}>
                       <sup key={r}>
                         [
-                        <a href={r} target="_blank">
+                        <a href={r} rel="noreferrer" target="_blank">
                           ref
                         </a>
                         ]
@@ -2791,18 +2965,28 @@ function RichPresenceOverview() {
   // Global mouse events for RP sidebar splitter
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (!isDraggingSidebar) return;
+      if (!isDraggingSidebar) {
+        return;
+      }
       const rarpLayout = document.querySelector(".rarp-layout");
-      if (!rarpLayout) return;
+      if (!rarpLayout) {
+        return;
+      }
       const containerLeft = rarpLayout.getBoundingClientRect().left;
       let newWidth = e.clientX - containerLeft;
-      if (newWidth < 150) newWidth = 150;
-      if (newWidth > window.innerWidth * 0.5) newWidth = window.innerWidth * 0.5;
+      if (newWidth < 150) {
+        newWidth = 150;
+      }
+      if (newWidth > window.innerWidth * 0.5) {
+        newWidth = window.innerWidth * 0.5;
+      }
       setSidebarWidth(newWidth);
     };
 
     const handleMouseUp = () => {
-      if (isDraggingSidebar) setIsDraggingSidebar(false);
+      if (isDraggingSidebar) {
+        setIsDraggingSidebar(false);
+      }
     };
 
     if (isDraggingSidebar) {
@@ -2852,7 +3036,7 @@ function RichPresenceOverview() {
       );
 
       const typeIndex = isFormatter ? formatters.indexOf(l) : lookups.indexOf(l);
-      map[l.toRefString()] = { type: type, index: typeIndex, macro: "Condition" };
+      map[l.toRefString()] = { type, index: typeIndex, macro: "Condition" };
     });
     return map;
   }, [script]);
@@ -2874,12 +3058,13 @@ function RichPresenceOverview() {
           if (issue.target) {
             const nav = reqToNav[issue.target.toRefString()];
             if (nav) {
-              if (nav.type === "display")
+              if (nav.type === "display") {
                 dsSev[nav.index] = Math.max(dsSev[nav.index], issue.severity);
-              else if (nav.type === "lookup")
+              } else if (nav.type === "lookup") {
                 lSev[nav.index] = Math.max(lSev[nav.index], issue.severity);
-              else if (nav.type === "formatter")
+              } else if (nav.type === "formatter") {
                 fSev[nav.index] = Math.max(fSev[nav.index], issue.severity);
+              }
             }
           }
         }),
@@ -2889,7 +3074,9 @@ function RichPresenceOverview() {
   }, [script, feedback, reqToNav]);
 
   const handleIssueClick = (issue) => {
-    if (!issue.target) return;
+    if (!issue.target) {
+      return;
+    }
     const reqRef = issue.target.toRefString();
     const nav = reqToNav[reqRef];
 
@@ -2908,7 +3095,9 @@ function RichPresenceOverview() {
           } else if (issue.target.parts) {
             // If it's a general Display String issue targeting the string itself
             const mainContainer = document.getElementById(reqRef);
-            if (mainContainer) mainContainer.classList.add("selected");
+            if (mainContainer) {
+              mainContainer.classList.add("selected");
+            }
           }
         }, 100);
       } else {
@@ -2934,17 +3123,17 @@ function RichPresenceOverview() {
   const dsCount = script.displayStrings.length;
 
   // Strict Check: It is only a valid default display if it's conditionless AND static (contains no macros)
-  const defaultDs =
-    script.displayStrings.filter((ds) => ds.isDefault && !ds.parts.some((p) => p.isMacro)).length >
-    0
-      ? "Yes"
-      : "No";
+  const defaultDs = script.displayStrings.some(
+    (ds) => ds.isDefault && !ds.parts.some((p) => p.isMacro),
+  )
+    ? "Yes"
+    : "No";
 
   return (
     <>
       <div className="main-header" style={{ marginBottom: "0", paddingBottom: "10px" }}>
         <div className="float-right" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <button onClick={toggleViewMode}>
+          <button onClick={toggleViewMode} type="button">
             {viewMode === "rarp" ? "Switch to Raw RP View" : "Switch to RP UI"}
           </button>
           <ConsoleIcon />
@@ -2963,16 +3152,16 @@ function RichPresenceOverview() {
         <div className="clear"></div>
       </div>
 
-      <div key={viewMode} className="fade-in-view">
+      <div className="fade-in-view" key={viewMode}>
         {viewMode === "rarp" ? (
           <div className="rarp-layout">
             <RARPTreeView
+              dsSeverities={dsSeverities}
+              formatterSeverities={formatterSeverities}
+              lookupSeverities={lookupSeverities}
               script={script}
               selectedItem={selectedItem}
               setSelectedItem={setSelectedItem}
-              dsSeverities={dsSeverities}
-              lookupSeverities={lookupSeverities}
-              formatterSeverities={formatterSeverities}
               sidebarWidth={sidebarWidth}
             />
 
@@ -2986,18 +3175,18 @@ function RichPresenceOverview() {
             ></div>
 
             <RARPDetailView
+              isHex={isHex}
               script={script}
               selectedItem={selectedItem}
               setSelectedItem={setSelectedItem}
-              isHex={isHex}
               toggleHex={toggleHex}
             />
           </div>
         ) : (
           <div style={{ marginTop: "20px" }}>
-            <HighlightedRichPresence script={script.text} onLogicSelected={setLogicData} />
+            <HighlightedRichPresence onLogicSelected={setLogicData} script={script.text} />
             <div className="data-table" style={{ marginTop: "20px" }}>
-              {logicData && <LogicTable logic={logicData} isHex={isHex} toggleHex={toggleHex} />}
+              {logicData && <LogicTable isHex={isHex} logic={logicData} toggleHex={toggleHex} />}
             </div>
           </div>
         )}
@@ -3013,17 +3202,19 @@ function RichPresenceOverview() {
 function BadgeGrid({ set = current.set }) {
   const PADDING = 10;
   const ROWLEN = 10;
-  let achs = set.getAchievements();
+  const achs = set.getAchievements();
 
   const HEIGHT = PADDING + 96 + PADDING + (64 + PADDING) * Math.ceil(achs.length / ROWLEN);
   const WIDTH = 2 * PADDING + (64 + PADDING) * ROWLEN;
 
-  let canvasRef = useRef();
+  const canvasRef = useRef();
   const [status, setStatus] = useState("⏳ Initializing...");
   const [isReady, setIsReady] = useState(false);
 
   const handleCopyClick = async () => {
-    if (!isReady) return;
+    if (!isReady) {
+      return;
+    }
 
     setStatus("⚙️ Processing...");
     const canvas = canvasRef.current;
@@ -3039,20 +3230,22 @@ function BadgeGrid({ set = current.set }) {
           await navigator.clipboard.write([item]);
           setStatus("✅ Copied!");
           setTimeout(() => setStatus("📋 Copy Image"), 2000);
-        } catch (err) {
-          console.error("Clipboard write failed:", err);
+        } catch (error) {
+          console.error("Clipboard write failed:", error);
           setStatus("❌ Too Large?");
         }
       }, "image/png");
-    } catch (err) {
-      console.error("Canvas conversion failed:", err);
+    } catch (error) {
+      console.error("Canvas conversion failed:", error);
       setStatus("❌ Error");
     }
   };
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      return;
+    }
     // Track if this effect is still active to prevent race conditions on fast set switching
     let isActive = true;
 
@@ -3083,20 +3276,24 @@ function BadgeGrid({ set = current.set }) {
       ctx.fillRect(PADDING + 3, PADDING + 3, 96, 96);
 
       for (let i = 0; i < achs.length; i++) {
-        let x = 2 * PADDING + (i % ROWLEN) * (64 + PADDING);
-        let y = PADDING + 96 + PADDING + Math.floor(i / ROWLEN) * (64 + PADDING);
+        const x = 2 * PADDING + (i % ROWLEN) * (64 + PADDING);
+        const y = PADDING + 96 + PADDING + Math.floor(i / ROWLEN) * (64 + PADDING);
         ctx.fillRect(x + 3, y + 3, 64, 64);
       }
 
       // 3. Draw Text Metadata
-      let authorlist = achs.map((a) => a.author).filter((a) => a);
-      let authcount = [],
+      const authorlist = achs.map((a) => a.author).filter(Boolean);
+      const authcount = [],
         authors = new Set(authorlist);
-      for (let auth of authors) authcount.push([auth, authorlist.filter((x) => x == auth).length]);
+      for (const auth of authors) {
+        authcount.push([auth, authorlist.filter((x) => x === auth).length]);
+      }
       authcount.sort(([a, _1], [b, _2]) => b - a);
 
-      function dropShadow(text, x, y, font = null, maxwidth = 10000) {
-        if (font) ctx.font = font;
+      function dropShadow(text, x, y, font = null, maxwidth = 10_000) {
+        if (font) {
+          ctx.font = font;
+        }
         ctx.fillStyle = "black";
         ctx.fillText(text, x + 2, y + 2, maxwidth);
         ctx.fillStyle = "white";
@@ -3135,20 +3332,29 @@ function BadgeGrid({ set = current.set }) {
 
       // 4. Load Icons (Set & Console) - Parallel
       const iconPromises = [];
-      if (set.icon) iconPromises.push(loadImage(set.icon).then((img) => ({ type: "set", img })));
+      if (set.icon) {
+        iconPromises.push(loadImage(set.icon).then((img) => ({ type: "set", img })));
+      }
       if (set.console && set.console.icon) {
         const consoleIconUrl = `https://static.retroachievements.org/assets/images/system/${set.console.icon}.png`;
         iconPromises.push(loadImage(consoleIconUrl).then((img) => ({ type: "console", img })));
       }
 
       const icons = await Promise.all(iconPromises);
-      if (!isActive) return;
+      if (!isActive) {
+        return;
+      }
 
       icons.forEach(({ type, img }) => {
-        if (!img) return;
-        if (type === "set") ctx.drawImage(img, PADDING, PADDING, 96, 96);
-        if (type === "console")
+        if (!img) {
+          return;
+        }
+        if (type === "set") {
+          ctx.drawImage(img, PADDING, PADDING, 96, 96);
+        }
+        if (type === "console") {
           ctx.drawImage(img, WIDTH - 2 * PADDING - 32, PADDING + 96 - 32, 32, 32);
+        }
       });
 
       // 5. Load Badges in Parallel Batches
@@ -3157,18 +3363,24 @@ function BadgeGrid({ set = current.set }) {
       let loaded = 0;
 
       for (let i = 0; i < total; i += BATCH_SIZE) {
-        if (!isActive) return;
+        if (!isActive) {
+          return;
+        }
 
         const batch = achs.slice(i, i + BATCH_SIZE);
         const batchPromises = batch.map((ach, batchIdx) => {
           const globalIdx = i + batchIdx;
-          if (!ach.badge) return Promise.resolve();
+          if (!ach.badge) {
+            return Promise.resolve();
+          }
 
           return loadImage(ach.badge).then((badgeImg) => {
-            if (!isActive) return;
+            if (!isActive) {
+              return;
+            }
             if (badgeImg) {
-              let x = 2 * PADDING + (globalIdx % ROWLEN) * (64 + PADDING);
-              let y = PADDING + 96 + PADDING + Math.floor(globalIdx / ROWLEN) * (64 + PADDING);
+              const x = 2 * PADDING + (globalIdx % ROWLEN) * (64 + PADDING);
+              const y = PADDING + 96 + PADDING + Math.floor(globalIdx / ROWLEN) * (64 + PADDING);
               ctx.drawImage(badgeImg, x, y, 64, 64);
             }
           });
@@ -3179,7 +3391,9 @@ function BadgeGrid({ set = current.set }) {
         setStatus(`⏳ ${Math.min(100, Math.round((loaded / total) * 100))}%`);
       }
 
-      if (!isActive) return;
+      if (!isActive) {
+        return;
+      }
       setIsReady(true);
       setStatus("📋 Copy Image");
     };
@@ -3189,35 +3403,39 @@ function BadgeGrid({ set = current.set }) {
     return () => {
       isActive = false;
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [set]);
 
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
       <button
         className="copy-btn"
-        onClick={handleCopyClick}
         disabled={!isReady}
+        onClick={handleCopyClick}
         style={{
           display: "none",
           opacity: isReady ? 1 : 0.7,
           cursor: isReady ? "pointer" : "wait",
         }}
+        type="button"
       >
         {status}
       </button>
-      <canvas ref={canvasRef} width={WIDTH} height={HEIGHT}></canvas>
+      <canvas height={HEIGHT} ref={canvasRef} width={WIDTH}></canvas>
     </div>
   );
 }
 
 function SetOverviewTab() {
-  if (current.set == null) return null;
-  let warn = SEVERITY_TO_CLASS[current.set.feedback.status()];
+  if (current.set == null) {
+    return null;
+  }
+  const warn = SEVERITY_TO_CLASS[current.set.feedback.status()];
   return (
     <tr
-      id="asset-set-overview"
       className={`asset-row ${warn}`}
       data-route=""
+      id="asset-set-overview"
       onClick={(e) => show_overview(e, <AchievementSetOverview />)}
     >
       <td className="asset-name">🗺️ Set Overview</td>
@@ -3226,12 +3444,14 @@ function SetOverviewTab() {
 }
 
 function CodeReviewTab() {
-  if (current.set == null) return null;
+  if (current.set == null) {
+    return null;
+  }
   return (
     <tr
-      id="asset-code-review"
       className={`asset-row`}
       data-route="/review"
+      id="asset-code-review"
       onClick={(e) => show_overview(e, <CodeReviewOverview />)}
     >
       <td className="asset-name">🔍 Detailed Set Breakdown</td>
@@ -3240,13 +3460,15 @@ function CodeReviewTab() {
 }
 
 function CodeNotesTab() {
-  if (current.notes.length == 0) return null;
-  let warn = SEVERITY_TO_CLASS[current.notes.feedback.status()];
+  if (current.notes.length === 0) {
+    return null;
+  }
+  const warn = SEVERITY_TO_CLASS[current.notes.feedback.status()];
   return (
     <tr
-      id="asset-code-notes"
       className={`asset-row ${warn}`}
       data-route="/notes"
+      id="asset-code-notes"
       onClick={(e) => show_overview(e, <CodeNotesOverview />)}
     >
       <td className="asset-name">📝 Code Notes</td>
@@ -3255,13 +3477,15 @@ function CodeNotesTab() {
 }
 
 function RichPresenceTab() {
-  if (!current.rp || current.rp.displayStrings.length === 0) return null;
-  let warn = SEVERITY_TO_CLASS[current.rp.feedback.status()];
+  if (!current.rp || current.rp.displayStrings.length === 0) {
+    return null;
+  }
+  const warn = SEVERITY_TO_CLASS[current.rp.feedback.status()];
   return (
     <tr
-      id="asset-rich-presence"
       className={`asset-row ${warn}`}
       data-route="/richp"
+      id="asset-rich-presence"
       onClick={(e) => show_overview(e, <RichPresenceOverview />)}
     >
       <td className="asset-name">🎮 Rich Presence</td>
@@ -3271,11 +3495,15 @@ function RichPresenceTab() {
 
 function AchievementTabs() {
   let achievements = current.set.getAchievements();
-  if (achievements.length == 0) return null;
+  if (achievements.length === 0) {
+    return null;
+  }
 
   // preload all images
   new Image().src = current.set.icon;
-  for (let ach of achievements) new Image().src = ach.badge;
+  for (const ach of achievements) {
+    new Image().src = ach.badge;
+  }
 
   achievements = achievements.sort((a, b) => a.state.rank - b.state.rank);
   return (
@@ -3284,13 +3512,13 @@ function AchievementTabs() {
         <td>Achievements</td>
       </tr>
       {achievements.map((ach) => {
-        let warn = SEVERITY_TO_CLASS[ach.feedback.status()];
+        const warn = SEVERITY_TO_CLASS[ach.feedback.status()];
         return (
           <tr
-            key={`a${ach.id}`}
-            id={ach.toRefString()}
             className={`asset-row ${warn}`}
             data-route={`/achievement/${ach.id}`}
+            id={ach.toRefString()}
+            key={`a${ach.id}`}
             onClick={(e) => show_overview(e, <AchievementInfo ach={ach} />)}
           >
             <td className="asset-name">
@@ -3306,7 +3534,9 @@ function AchievementTabs() {
 
 function LeaderboardTabs() {
   let leaderboards = current.set.getLeaderboards();
-  if (leaderboards.length == 0) return null;
+  if (leaderboards.length === 0) {
+    return null;
+  }
 
   leaderboards = leaderboards.sort((a, b) => a.state.rank - b.state.rank);
   return (
@@ -3315,13 +3545,13 @@ function LeaderboardTabs() {
         <td>Leaderboards</td>
       </tr>
       {leaderboards.map((lb) => {
-        let warn = SEVERITY_TO_CLASS[lb.feedback.status()];
+        const warn = SEVERITY_TO_CLASS[lb.feedback.status()];
         return (
           <tr
-            key={`b${lb.id}`}
-            id={lb.toRefString()}
             className={`asset-row ${warn}`}
             data-route={`/leaderboard/${lb.id}`}
+            id={lb.toRefString()}
+            key={`b${lb.id}`}
             onClick={(e) => show_overview(e, <LeaderboardInfo lb={lb} />)}
           >
             <td className="asset-name">
@@ -3336,6 +3566,7 @@ function LeaderboardTabs() {
 }
 
 function SidebarTabs() {
+  // oxlint-disable-next-line @nkzw/require-use-effect-arguments
   useEffect(route_change);
 
   return (
@@ -3359,7 +3590,7 @@ function show_overview(e, node) {
   );
   selectTab(e.currentTarget);
 
-  let route = e.currentTarget.getAttribute("data-route");
+  const route = e.currentTarget.getAttribute("data-route");
   history.pushState({}, "", `#!/game/${current.id}${route}`);
 }
 
@@ -3370,8 +3601,12 @@ function update() {
 
   // ensure that every achievement and leaderboard has been assessed
   // don't assume they have already been processed, as code notes might be new
-  for (let ach of current.set.getAchievements()) assess_achievement(ach);
-  for (let lb of current.set.getLeaderboards()) assess_leaderboard(lb);
+  for (const ach of current.set.getAchievements()) {
+    assess_achievement(ach);
+  }
+  for (const lb of current.set.getLeaderboards()) {
+    assess_leaderboard(lb);
+  }
 
   // assess rich presence
   assess_rich_presence(current.rp);
@@ -3389,7 +3624,9 @@ function update() {
 
 function load_achievement_set(json) {
   current.set.addJSON(json);
-  if (json.RichPresencePatch) load_rich_presence(json.RichPresencePatch, false);
+  if (json.RichPresencePatch) {
+    load_rich_presence(json.RichPresencePatch, false);
+  }
   update();
 }
 
@@ -3399,18 +3636,23 @@ function load_user_file(txt) {
 }
 
 function load_code_notes(json) {
-  for (const obj of json)
-    if (obj.Note) current.notes.add(new CodeNote(obj.Address, obj.Note, obj.User));
+  for (const obj of json) {
+    if (obj.Note) {
+      current.notes.add(new CodeNote(obj.Address, obj.Note, obj.User));
+    }
+  }
   update();
 }
 
 function load_rich_presence(txt, from_file) {
-  if (!current.rp || from_file) current.rp = RichPresence.fromText(txt);
+  if (!current.rp || from_file) {
+    current.rp = RichPresence.fromText(txt);
+  }
   update();
 }
 
 function route_change() {
-  let parts = location.hash.toLowerCase().split("/");
+  const parts = location.hash.toLowerCase().split("/");
   switch (
     parts[3] ??
     "" // choose a route
@@ -3445,24 +3687,33 @@ function route_change() {
 
 function main(event) {
   if (location.hash.startsWith("#!/")) {
-    let parts = location.hash.toLowerCase().split("/");
+    const parts = location.hash.toLowerCase().split("/");
     switch (parts[1]) {
       case "game":
-        if (parts[2] == current.id) return route_change();
+        if (Number(parts[2]) === current.id) {
+          return route_change();
+        }
 
         reset_loaded();
         document.getElementById("loading-overlay").classList.add("shown");
         fetch(`${MIDDLEWARE_URL}/pack/${parts[2]}`)
           .then((response) => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
             return response.json();
           })
           .then((data) => {
             current.id = data.game?.GameId;
             current.set.addJSON(data.game);
-            if (data.game.RichPresencePatch) load_rich_presence(data.game.RichPresencePatch, false);
-            for (const obj of data.notes)
-              if (obj.Note) current.notes.add(new CodeNote(obj.Address, obj.Note, obj.User));
+            if (data.game.RichPresencePatch) {
+              load_rich_presence(data.game.RichPresencePatch, false);
+            }
+            for (const obj of data.notes) {
+              if (obj.Note) {
+                current.notes.add(new CodeNote(obj.Address, obj.Note, obj.User));
+              }
+            }
             update();
           })
           .catch((error) => {
@@ -3480,6 +3731,108 @@ function main(event) {
 // EXPLAINER UI COMPONENTS
 // --------------------------------------------------
 
+// Helper to wrap specific phrases in colored spans
+const highlightKeywords = (text) => {
+  if (!text) {
+    return null;
+  }
+
+  // Regex explanations:
+  // 1. (reset|pause|lock) the achievement : Long phrases are safe
+  // 2. (MeasuredIf) : Distinct flag name
+  // 3. \b(Measured|Measured%)\b : Strict word boundary
+  // 4. \bTrigger\b : Strict word boundary
+  // 5. \bActivate\b : Strict word boundary for Transition logic
+  // 6. \[.*?\] : Variables/Code Notes inside brackets
+  // 7. \".*?\" : Quoted Strings (Enums)
+  const regex =
+    /(reset the achievement|pause the achievement|lock the achievement|MeasuredIf|\bMeasured%?\b|\bTrigger\b|\bActivate\b|\[.*?\]|".*?")/g;
+
+  const parts = text.split(regex);
+
+  return parts.map((part, i) => {
+    const lower = part.toLowerCase();
+
+    // 1. Variable Highlighting (Remove Brackets + Truncate)
+    // We detect [Variables] and strip the brackets for display
+    if (part.startsWith("[") && part.endsWith("]")) {
+      const content = part.slice(1, -1);
+      // Use title for tooltip (full content) in case CSS truncates it
+      return (
+        <span className="logic-variable" key={i} title={content}>
+          {content}
+        </span>
+      );
+    }
+
+    // 2. Enum Highlighting (Remove Quotes & Italicize)
+    if (part.startsWith('"') && part.endsWith('"')) {
+      // oxlint-disable-next-line unicorn/prefer-string-slice
+      const content = part.substring(1, part.length - 1);
+      // Check if it's just empty quotes
+      if (!content) {
+        return part;
+      }
+      return (
+        <em className="logic-enum" key={i}>
+          {content}
+        </em>
+      );
+    }
+
+    if (lower === "reset the achievement") {
+      return (
+        <span className="logic-keyword-reset" key={i}>
+          {part}
+        </span>
+      );
+    }
+    if (lower === "pause the achievement" || lower === "lock the achievement") {
+      return (
+        <span className="logic-keyword-pause" key={i}>
+          {part}
+        </span>
+      );
+    }
+    if (part === "MeasuredIf") {
+      return (
+        <span className="logic-keyword-measuredif" key={i}>
+          {part}
+        </span>
+      );
+    }
+    if (part === "Measured" || part === "Measured%") {
+      return (
+        <span className="logic-keyword-measured" key={i}>
+          {part}
+        </span>
+      );
+    }
+
+    if (part === "Trigger") {
+      const nextPart = parts[i + 1];
+      if (nextPart && (nextPart.startsWith(" when") || nextPart.startsWith(" Indicator"))) {
+        return (
+          <span className="logic-keyword-trigger" key={i}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    }
+
+    if (part === "Activate") {
+      return (
+        <span className="logic-keyword-activate" key={i}>
+          {part}
+        </span>
+      );
+    }
+
+    return part;
+  });
+};
+
 function LogicExplanation({ asset, groups, showDecimal = true }) {
   try {
     const { mainText, detailedInfo } = LogicExplainer.explainAsset(
@@ -3490,100 +3843,11 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
       showDecimal, // Pass the prop to the explainer logic.
     );
 
-    // Helper to wrap specific phrases in colored spans
-    const highlightKeywords = (text) => {
-      if (!text) return null;
-
-      // Regex explanations:
-      // 1. (reset|pause|lock) the achievement : Long phrases are safe
-      // 2. (MeasuredIf) : Distinct flag name
-      // 3. \b(Measured|Measured%)\b : Strict word boundary
-      // 4. \bTrigger\b : Strict word boundary
-      // 5. \bActivate\b : Strict word boundary for Transition logic
-      // 6. \[.*?\] : Variables/Code Notes inside brackets
-      // 7. \".*?\" : Quoted Strings (Enums)
-      const regex =
-        /(reset the achievement|pause the achievement|lock the achievement|MeasuredIf|\bMeasured%?\b|\bTrigger\b|\bActivate\b|\[.*?\]|\".*?\")/g;
-
-      const parts = text.split(regex);
-
-      return parts.map((part, i) => {
-        const lower = part.toLowerCase();
-
-        // 1. Variable Highlighting (Remove Brackets + Truncate)
-        // We detect [Variables] and strip the brackets for display
-        if (part.startsWith("[") && part.endsWith("]")) {
-          const content = part.substring(1, part.length - 1);
-          // Use title for tooltip (full content) in case CSS truncates it
-          return (
-            <span key={i} className="logic-variable" title={content}>
-              {content}
-            </span>
-          );
-        }
-
-        // 2. Enum Highlighting (Remove Quotes & Italicize)
-        if (part.startsWith('"') && part.endsWith('"')) {
-          const content = part.substring(1, part.length - 1);
-          // Check if it's just empty quotes
-          if (!content) return part;
-          return (
-            <em key={i} className="logic-enum">
-              {content}
-            </em>
-          );
-        }
-
-        if (lower === "reset the achievement")
-          return (
-            <span key={i} className="logic-keyword-reset">
-              {part}
-            </span>
-          );
-        if (lower === "pause the achievement" || lower === "lock the achievement")
-          return (
-            <span key={i} className="logic-keyword-pause">
-              {part}
-            </span>
-          );
-        if (part === "MeasuredIf")
-          return (
-            <span key={i} className="logic-keyword-measuredif">
-              {part}
-            </span>
-          );
-        if (part === "Measured" || part === "Measured%")
-          return (
-            <span key={i} className="logic-keyword-measured">
-              {part}
-            </span>
-          );
-
-        if (part === "Trigger") {
-          const nextPart = parts[i + 1];
-          if (nextPart && (nextPart.startsWith(" when") || nextPart.startsWith(" Indicator")))
-            return (
-              <span key={i} className="logic-keyword-trigger">
-                {part}
-              </span>
-            );
-          return part;
-        }
-
-        if (part === "Activate")
-          return (
-            <span key={i} className="logic-keyword-activate">
-              {part}
-            </span>
-          );
-
-        return part;
-      });
-    };
-
     // Recursive parser to handle nested [[EXPAND]] tokens
     const parseContentRecursively = (text, uniqueKeyPrefix) => {
-      if (!text) return null;
+      if (!text) {
+        return null;
+      }
 
       // 1. Split by EXPAND tokens first
       const parts = text.split(/(\[\[EXPAND:.*?:.*?\]\])/g);
@@ -3597,8 +3861,8 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
 
           return (
             <details
-              key={`${uniqueKeyPrefix}-${index}`}
               className="explainer-details"
+              key={`${uniqueKeyPrefix}-${index}`}
               style={{ display: "inline-block", verticalAlign: "top", margin: "2px" }}
             >
               <summary>{label}</summary>
@@ -3635,7 +3899,7 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
       };
 
       for (let i = 0; i < lines.length; i++) {
-        let line = lines[i].trimEnd();
+        const line = lines[i].trimEnd();
 
         if (line.trim() === "") {
           flushList();
@@ -3652,7 +3916,7 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
           // Parse content recursively in headers to support [[EXPAND]]
           elements.push(
             <h1 key={i} style={style}>
-              {parseContentRecursively(line.substring(2), `h1-${i}`)}
+              {parseContentRecursively(line.slice(2), `h1-${i}`)}
             </h1>,
           );
         } else if (line.startsWith("## ")) {
@@ -3660,7 +3924,7 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
           // Parse content recursively in headers to support [[EXPAND]]
           elements.push(
             <h2 key={i} style={style}>
-              {parseContentRecursively(line.substring(3), `h2-${i}`)}
+              {parseContentRecursively(line.slice(3), `h2-${i}`)}
             </h2>,
           );
         } else if (line.startsWith("### ")) {
@@ -3668,14 +3932,14 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
           // Parse content recursively in headers to support [[EXPAND]]
           elements.push(
             <h3 key={i} style={style}>
-              {parseContentRecursively(line.substring(4), `h3-${i}`)}
+              {parseContentRecursively(line.slice(4), `h3-${i}`)}
             </h3>,
           );
         }
         // List Items
         else if (line.startsWith("- ")) {
           // Use recursive parser for list items
-          listBuffer.push(<li key={i}>{parseContentRecursively(line.substring(2), `li-${i}`)}</li>);
+          listBuffer.push(<li key={i}>{parseContentRecursively(line.slice(2), `li-${i}`)}</li>);
         }
         // Top-level block expanders (like Array Logic Details)
         else if (line.startsWith("[[EXPAND:")) {
@@ -3700,9 +3964,10 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
       return elements;
     };
 
+    // oxlint-disable-next-line react/error-boundaries
     return <div className="logic-explanation">{renderLines()}</div>;
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
     return (
       <div
         className="logic-explanation"
@@ -3710,17 +3975,18 @@ function LogicExplanation({ asset, groups, showDecimal = true }) {
       >
         <h3>⚠️ Explainer Error</h3>
         <p>An error occurred while generating the explanation:</p>
-        <pre>{e.message}</pre>
-        <pre>{e.stack}</pre>
+        <pre>{error.message}</pre>
+        <pre>{error.stack}</pre>
       </div>
     );
   }
 }
 
 let _testIndex = 0;
+// oxlint-disable-next-line no-unused-vars
 function testAchievement(mem) {
   _testIndex += 1;
-  let id = 9000000 + _testIndex;
+  const id = 9_000_000 + _testIndex;
   current.set.achievements.set(
     id,
     Achievement.fromJSON({
@@ -3772,7 +4038,7 @@ window.onhashchange = main;
 				display: block !important;
 			}
 		`;
-    document.head.appendChild(style);
+    document.head.append(style);
   }
 
   // 2. Create the Splitter between asset-list and asset-info
@@ -3797,10 +4063,16 @@ window.onhashchange = main;
     });
 
     document.addEventListener("mousemove", (e) => {
-      if (!isDragging) return;
+      if (!isDragging) {
+        return;
+      }
       let newWidth = e.clientX;
-      if (newWidth < 200) newWidth = 200; // minimum width
-      if (newWidth > window.innerWidth * 0.8) newWidth = window.innerWidth * 0.8; // max width
+      if (newWidth < 200) {
+        newWidth = 200;
+      } // minimum width
+      if (newWidth > window.innerWidth * 0.8) {
+        newWidth = window.innerWidth * 0.8;
+      } // max width
 
       // Force absolute width everywhere so the internal table natively expands
       assetList.style.flexBasis = newWidth + "px";
@@ -3833,10 +4105,9 @@ window.onhashchange = main;
     restoreBtn.style.padding = "6px 12px"; // Squarish to match the screenshot footprint
 
     restoreBtn.addEventListener("click", () => {
-      document.body.classList.remove("autocr-sidebar-fully-hidden");
-      document.body.classList.remove("autocr-sidebar-hidden");
+      document.body.classList.remove("autocr-sidebar-fully-hidden", "autocr-sidebar-hidden");
     });
-    document.body.appendChild(restoreBtn);
+    document.body.append(restoreBtn);
   }
 
   // 4. Reliable loop to inject the Collapse button into the Sidebar footer next to Unload
