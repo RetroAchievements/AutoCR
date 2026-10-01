@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .hooks",
     "dev": "bun ./index.html --console",
     "build": "bun build ./index.html --production --sourcemap=linked --outdir=dist",
     "start": "bunx serve dist/ -l 8080",

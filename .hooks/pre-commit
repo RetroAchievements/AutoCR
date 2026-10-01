@@ -1,0 +1,8 @@
+#!/bin/sh
+# Exit on error.
+set -e
+
+if ! bun run format:check; then
+  printf "\n❌ Formatting check failed. Run 'bun run format' and try again.\n\n"
+  exit 1
+fi
