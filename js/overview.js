@@ -2700,7 +2700,7 @@ function RARPDisplayEditor({ ds, isHex, toggleHex, selectedItem, setSelectedItem
       try {
         macroLogic = Logic.fromString(targetMacro.parameter, true);
       } catch {
-        // Ignore parse errors; macroLogic stays undefined and the fallback is rendered
+        //
       }
 
       tableContent = (

@@ -1258,7 +1258,7 @@ class RichPresenceDisplayPart {
       try {
         this.logic = Logic.fromString(parameter, true);
       } catch {
-        // Ignore parse errors; this.logic keeps its default value
+        //
       }
     }
   }
@@ -1435,7 +1435,7 @@ export class RichPresence {
             try {
               ds.condition = Logic.fromString(qParts[1], false);
             } catch {
-              // Ignore parse errors; ds.condition keeps its default value
+              //
             }
             displayContent = qParts.slice(2).join("?"); // Everything after 2nd '?'
           } else {
@@ -1503,7 +1503,7 @@ export class RichPresence {
             try {
               calcLogic = Logic.fromString(p.parameter, true);
             } catch {
-              // Ignore parse errors; calcLogic keeps its default value
+              //
             }
             return { name: p.text, calc: calcLogic };
           })
