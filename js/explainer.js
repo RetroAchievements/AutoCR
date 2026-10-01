@@ -26,6 +26,18 @@ class ProcessorResult {
   }
 }
 
+const parseOff = (s) => {
+  let clean = s.replace("+", "").replace("-", "").trim();
+  if (clean.startsWith("0x")) {
+    clean = clean.slice(2);
+  }
+  let v = Number.parseInt(clean, 16);
+  if (s.includes("-")) {
+    v = -v;
+  }
+  return v;
+};
+
 class ExplanationContext {
   group; // Array of Requirements
   notesLookup; // Map<number, CodeNote>
@@ -50,14 +62,16 @@ class ExplanationContext {
     }
 
     // 2. Standard address lookup
-    let name = this.getNameFromAddr(op.value, index, suppressPointers);
+    const name = this.getNameFromAddr(op.value, index, suppressPointers);
 
     return name;
   }
 
   // Shared Helper: Get operand name using Address String
   getNameFromAddr(addrVal, index, suppressPointers = false) {
-    if (addrVal === null || addrVal === undefined) return "";
+    if (addrVal === null || addrVal === undefined) {
+      return "";
+    }
 
     // Use resolver (handles Redirects and Pointers)
     const alias = ConditionFormatter.resolveAlias(
@@ -67,7 +81,9 @@ class ExplanationContext {
       this.notesLookup,
       this.rangeCache,
     );
-    if (alias) return `[${alias}]`;
+    if (alias) {
+      return `[${alias}]`;
+    }
 
     // Check for Pointer chain context (AddAddress on previous line)
     if (this.group && index > 0 && index <= this.group.length) {
@@ -82,7 +98,9 @@ class ExplanationContext {
         ConditionFormatter.getEffectiveNote(this.notesLookup, prevReq.lhs.value)
       ) {
         const hexAddr = "0x" + addrVal.toString(16).toUpperCase();
-        if (suppressPointers) return `[... + ${hexAddr}]`;
+        if (suppressPointers) {
+          return `[... + ${hexAddr}]`;
+        }
         return `[Pointer ... + ${hexAddr}]`;
       }
     }
@@ -101,13 +119,20 @@ class ExplanationContext {
         contextSize.name.startsWith("Bit")
       ) {
         let bitVal = -1;
-        if (typeof op.value === "string") bitVal = parseInt(op.value.replace("0x", ""), 16);
-        else bitVal = op.value;
+        if (typeof op.value === "string") {
+          bitVal = Number.parseInt(op.value.replace("0x", ""), 16);
+        } else {
+          bitVal = op.value;
+        }
 
-        if (bitVal === 0) return "false";
+        if (bitVal === 0) {
+          return "false";
+        }
         if (bitVal === 1) {
           const bitLabel = this.tryGetBitLabel(contextAddress, contextSize, index);
-          if (bitLabel) return `"${bitLabel}"`;
+          if (bitLabel) {
+            return `"${bitLabel}"`;
+          }
           return "true";
         }
       }
@@ -125,17 +150,25 @@ class ExplanationContext {
           chainInfo,
         );
 
-        if (enumLabel) return `"${enumLabel}"`;
+        if (enumLabel) {
+          return `"${enumLabel}"`;
+        }
       }
     }
 
     // 3. Fallback formatting
-    if (op.type === ReqType.FLOAT) return op.value.toString();
+    if (op.type === ReqType.FLOAT) {
+      return op.value.toString();
+    }
 
-    if (op.type == ReqType.RECALL) return "recalled value";
+    if (op.type === ReqType.RECALL) {
+      return "recalled value";
+    }
 
     if (typeof op.value === "number") {
-      if (this.showDecimal) return op.value.toString();
+      if (this.showDecimal) {
+        return op.value.toString();
+      }
       return "0x" + op.value.toString(16).toUpperCase();
     }
 
@@ -152,18 +185,27 @@ class ExplanationContext {
     suppressPointers = false,
     suppressBooleans = false,
   ) {
-    if (!op) return "";
+    if (!op) {
+      return "";
+    }
     if (op.type === ReqType.RECALL) {
-      if (this.lastRemembered) return `the stored value in ${this.lastRemembered}`;
+      if (this.lastRemembered) {
+        return `the stored value in ${this.lastRemembered}`;
+      }
       return "the stored value";
     }
 
-    if (op.type === ReqType.VALUE || op.type === ReqType.FLOAT)
+    if (op.type === ReqType.VALUE || op.type === ReqType.FLOAT) {
       return this.formatValue(op, index, contextAddress, contextSize, suppressBooleans);
+    }
 
     let prefix = "";
-    if (op.type === ReqType.DELTA) prefix = "previous frame ";
-    if (op.type === ReqType.PRIOR) prefix = "prior frame ";
+    if (op.type === ReqType.DELTA) {
+      prefix = "previous frame ";
+    }
+    if (op.type === ReqType.PRIOR) {
+      prefix = "prior frame ";
+    }
 
     const name = this.getName(op, index, suppressPointers);
     return `${prefix}${name}`;
@@ -190,10 +232,12 @@ class ExplanationContext {
 
   // Helper to reconstruct pointer chain info for ConditionFormatter
   buildChainInfo(index) {
-    if (!this.group || index <= 0) return [];
+    if (!this.group || index <= 0) {
+      return [];
+    }
 
-    let chainContext = [];
-    let stack = [];
+    const chainContext = [];
+    const stack = [];
     let scan = index - 1;
     while (scan >= 0) {
       if (scan >= this.group.length) {
@@ -250,11 +294,15 @@ class ExplanationContext {
   }
 
   tryGetBitLabel(addrVal, size, index) {
-    if (!size || !size.name || !size.name.startsWith("Bit")) return "";
+    if (!size || !size.name || !size.name.startsWith("Bit")) {
+      return "";
+    }
 
-    const bitChar = size.name.charAt(size.name.length - 1);
-    const bitIndex = parseInt(bitChar, 10);
-    if (isNaN(bitIndex)) return "";
+    const bitChar = size.name.at(-1);
+    const bitIndex = Number.parseInt(bitChar, 10);
+    if (Number.isNaN(bitIndex)) {
+      return "";
+    }
 
     const chainInfo = this.buildChainInfo(index);
     let targetNode = null;
@@ -282,14 +330,6 @@ class ExplanationContext {
           (n) => n.indentLevel !== -2 && (!n.parent || n.parent.indentLevel === -1),
         );
 
-        const parseOff = (s) => {
-          let clean = s.replace("+", "").replace("-", "").trim();
-          if (clean.startsWith("0x")) clean = clean.substring(2);
-          let v = parseInt(clean, 16);
-          if (s.includes("-")) v = -v;
-          return v;
-        };
-
         for (let i = 0; i < offsets.length; i++) {
           const off = offsets[i];
           let match = null;
@@ -301,8 +341,11 @@ class ExplanationContext {
             }
           }
           if (match) {
-            if (i === offsets.length - 1) targetNode = match;
-            else currentLevelNodes = match.children;
+            if (i === offsets.length - 1) {
+              targetNode = match;
+            } else {
+              currentLevelNodes = match.children;
+            }
           } else {
             break;
           }
@@ -312,7 +355,9 @@ class ExplanationContext {
 
     if (!targetNode && this.rangeCache && offsets.length === 0) {
       const match = this.rangeCache.find((r) => addrVal >= r.start && addrVal < r.end);
-      if (match && match.node) targetNode = match.node;
+      if (match && match.node) {
+        targetNode = match.node;
+      }
     }
 
     if (targetNode) {
@@ -322,14 +367,18 @@ class ExplanationContext {
   }
 
   parseBitLabelFromContent(content, bitIndex) {
-    if (!content) return "";
+    if (!content) {
+      return "";
+    }
     const lines = content.split(/\r\n|\r|\n/);
     // Added |\\- to catch `-` and `|` as delimiters
     const regex = new RegExp(`^\\s*Bit\\s*${bitIndex}\\s*[:=|\\-]\\s*(.+)`, "i");
 
     for (const line of lines) {
       const match = line.match(regex);
-      if (match) return match[1].trim();
+      if (match) {
+        return match[1].trim();
+      }
     }
     return "";
   }
@@ -372,25 +421,29 @@ class StandardConditionProcessor extends LogicProcessor {
   process(ctx, conditions, index) {
     const cond = conditions[index];
 
-    if (cond.flag && cond.flag.name === "AddAddress")
+    if (cond.flag && cond.flag.name === "AddAddress") {
       return new ProcessorResult("", ExplanationCategory.Context, 1);
+    }
 
     if (cond.lhs.type === ReqType.VALUE && cond.rhs && cond.rhs.type === ReqType.VALUE) {
       if (cond.op === "=") {
         if (cond.lhs.value === cond.rhs.value) {
           // Display hit count for dummy conditions as they are often used as frame timers
-          if (cond.hits > 0)
+          if (cond.hits > 0) {
             return new ProcessorResult(
               `Always True (Dummy Condition) for ${cond.hits} frames`,
               ExplanationCategory.Context,
               1,
             );
+          }
           return new ProcessorResult(
             "Always True (Dummy Condition)",
             ExplanationCategory.Context,
             1,
           );
-        } else return new ProcessorResult("Always False", ExplanationCategory.Context, 1);
+        } else {
+          return new ProcessorResult("Always False", ExplanationCategory.Context, 1);
+        }
       }
     }
 
@@ -421,8 +474,9 @@ class StandardConditionProcessor extends LogicProcessor {
 
     if (cond.op === "&") {
       const bitExplanation = this.tryExplainBitwise(cond, ctx, index);
-      if (bitExplanation)
+      if (bitExplanation) {
         return new ProcessorResult(bitExplanation, ExplanationCategory.Context, 1);
+      }
     }
 
     let left = ctx.getOperandText(cond.lhs, index);
@@ -430,7 +484,7 @@ class StandardConditionProcessor extends LogicProcessor {
     // Suppress boolean formatting for arithmetic operations
     const isArithmetic = ["+", "-", "*", "/", "%"].includes(cond.op);
 
-    let right = cond.rhs
+    const right = cond.rhs
       ? ctx.getOperandText(
           cond.rhs,
           index,
@@ -441,18 +495,23 @@ class StandardConditionProcessor extends LogicProcessor {
           isArithmetic,
         )
       : "";
-    let op = ctx.getOperatorText(cond.op);
+    const op = ctx.getOperatorText(cond.op);
 
     let hits = "";
     if (cond.hits > 0) {
-      if (cond.hits === 1) hits = " (once)";
-      else hits = ` (once this happens ${cond.hits} times)`;
+      if (cond.hits === 1) {
+        hits = " (once)";
+      } else {
+        hits = ` (once this happens ${cond.hits} times)`;
+      }
     }
 
     // Handle friendly name from context or raw token
-    if (left === "the stored value" || left.includes("{recall}")) left = "recalled value";
+    if (left === "the stored value" || left.includes("{recall}")) {
+      left = "recalled value";
+    }
 
-    let text = `${left} ${op} ${right}${hits}`;
+    const text = `${left} ${op} ${right}${hits}`;
 
     if (cond.flag && cond.flag.name === "MeasuredIf") {
       return new ProcessorResult(
@@ -472,9 +531,13 @@ class StandardConditionProcessor extends LogicProcessor {
   }
 
   tryExplainBitwise(cond, ctx, index) {
-    if (!cond.rhs || cond.rhs.type !== ReqType.VALUE) return "";
+    if (!cond.rhs || cond.rhs.type !== ReqType.VALUE) {
+      return "";
+    }
     const maskVal = cond.rhs.value;
-    if (maskVal <= 0) return "";
+    if (maskVal <= 0) {
+      return "";
+    }
 
     if ((maskVal & (maskVal - 1)) === 0) {
       const bitIndex = Math.log2(maskVal);
@@ -579,13 +642,16 @@ class MeasuredTriggerProcessor extends LogicProcessor {
 
     let text = "";
 
-    if (f === "Measured%") text = `${name} as %`;
-    else {
+    if (f === "Measured%") {
+      text = `${name} as %`;
+    } else {
       if (!cond.op) {
         text = name;
-      } else if (cond.op === "=" || cond.op === ">=" || cond.op === ">")
+      } else if (cond.op === "=" || cond.op === ">=" || cond.op === ">") {
         text = `${name} up to ${limit}`;
-      else text = `${name} (${ctx.getOperatorText(cond.op)} ${limit})`;
+      } else {
+        text = `${name} (${ctx.getOperatorText(cond.op)} ${limit})`;
+      }
     }
 
     return new ProcessorResult(
@@ -624,8 +690,9 @@ class RememberProcessor extends LogicProcessor {
             !cFlag.includes("Sub") &&
             !cFlag.includes("Next") &&
             cFlag !== "AddAddress"
-          )
+          ) {
             break;
+          }
 
           if (c.lhs.type === ReqType.RECALL || (c.rhs && c.rhs.type === ReqType.RECALL)) {
             usesRecall = true;
@@ -736,7 +803,9 @@ class AndNextProcessor extends LogicProcessor {
         continue;
       }
 
-      if (f !== "AndNext" && f !== "OrNext" && f !== "ResetNextIf") break;
+      if (f !== "AndNext" && f !== "OrNext" && f !== "ResetNextIf") {
+        break;
+      }
 
       // Fallback to StandardConditionProcessor
       let stepRes = null;
@@ -769,16 +838,17 @@ class AndNextProcessor extends LogicProcessor {
       }
 
       let effectiveFlag = "";
-      if (fFirst === "AndNext" || fFirst === "OrNext" || fFirst === "ResetNextIf")
+      if (fFirst === "AndNext" || fFirst === "OrNext" || fFirst === "ResetNextIf") {
         effectiveFlag = fFirst;
-      else if (fLast === "AndNext" || fLast === "OrNext" || fLast === "ResetNextIf")
+      } else if (fLast === "AndNext" || fLast === "OrNext" || fLast === "ResetNextIf") {
         effectiveFlag = fLast;
+      }
 
       if (effectiveFlag === "ResetNextIf") {
         resetConditions.push(stepRes.text);
       } else {
         const connector = effectiveFlag === "OrNext" ? "OR" : "AND";
-        chainItems.push({ text: stepRes.text, connector: connector });
+        chainItems.push({ text: stepRes.text, connector });
       }
 
       ptr += stepRes.conditionsConsumed;
@@ -838,14 +908,16 @@ class AndNextProcessor extends LogicProcessor {
         if (targetText.startsWith(measuredHeader)) {
           let sb = measuredHeader;
           // Append the body (what is being measured)
-          sb += targetText.substring(measuredHeader.length);
+          sb += targetText.slice(measuredHeader.length);
 
           // Append the condition clause at the end
           sb += " when (";
           for (let k = 0; k < chainItems.length; k++) {
             const item = chainItems[k];
             sb += item.text;
-            if (k < chainItems.length - 1) sb += ` ${item.connector} `;
+            if (k < chainItems.length - 1) {
+              sb += ` ${item.connector} `;
+            }
           }
           sb += ")";
           resultText = sb;
@@ -859,7 +931,7 @@ class AndNextProcessor extends LogicProcessor {
             if (targetText.startsWith(p) && targetText.endsWith(s)) {
               prefixWrapper = p;
               suffixWrapper = s;
-              targetText = targetText.substring(p.length, targetText.length - s.length);
+              targetText = targetText.slice(p.length, targetText.length - s.length);
             }
           } else if (category === ExplanationCategory.Reset) {
             const p = "If ";
@@ -867,7 +939,7 @@ class AndNextProcessor extends LogicProcessor {
             if (targetText.startsWith(p) && targetText.endsWith(s)) {
               prefixWrapper = p;
               suffixWrapper = s;
-              targetText = targetText.substring(p.length, targetText.length - s.length);
+              targetText = targetText.slice(p.length, targetText.length - s.length);
             }
           } else if (category === ExplanationCategory.Pause) {
             const p = "If ";
@@ -875,12 +947,12 @@ class AndNextProcessor extends LogicProcessor {
               const lastComma = targetText.lastIndexOf(",");
               if (lastComma > p.length) {
                 prefixWrapper = p;
-                suffixWrapper = targetText.substring(lastComma);
-                targetText = targetText.substring(p.length, lastComma);
+                suffixWrapper = targetText.slice(lastComma);
+                targetText = targetText.slice(p.length, lastComma);
               }
             }
           } else if (targetText.startsWith("Calculate: ")) {
-            targetText = targetText.substring(11);
+            targetText = targetText.slice(11);
           }
 
           let sb = prefixWrapper + "(";
@@ -900,7 +972,9 @@ class AndNextProcessor extends LogicProcessor {
       }
     } else {
       let sb = "";
-      for (const item of chainItems) sb += `${item.text} ${item.connector} `;
+      for (const item of chainItems) {
+        sb += `${item.text} ${item.connector} `;
+      }
       resultText = `${sb} (Incomplete Chain)`;
     }
 
@@ -909,6 +983,17 @@ class AndNextProcessor extends LogicProcessor {
     return result;
   }
 }
+
+// Grammar normalization
+const cleanOp = (txt) => {
+  if (txt === "is") {
+    return "";
+  }
+  if (txt.startsWith("is ")) {
+    return txt.slice(3);
+  }
+  return txt;
+};
 
 // Handles Delta Transitions - Priority 01
 class TransitionProcessor extends LogicProcessor {
@@ -919,17 +1004,23 @@ class TransitionProcessor extends LogicProcessor {
   canProcess(conditions, index) {
     // AddAddress lines are structural (pointer arithmetic) and should never be interpreted
     // as value transitions, even if they technically look like "Mem & Value".
-    if (conditions[index].flag && conditions[index].flag.name === "AddAddress") return false;
+    if (conditions[index].flag && conditions[index].flag.name === "AddAddress") {
+      return false;
+    }
 
     // 1. Is Head?
-    if (this.findPairIndex(conditions, index) !== -1) return true;
+    if (this.findPairIndex(conditions, index) !== -1) {
+      return true;
+    }
 
     // 2. Is Tail?
     const headIdx = this.findHeadIndex(conditions, index);
     if (headIdx !== -1) {
       // Only claim (and silence) the tail if the transition was contiguous (not interrupted).
       // This ensures ResetNextIf on the tail is not hidden.
-      if (!this.isInterrupted(conditions, headIdx, index)) return true;
+      if (!this.isInterrupted(conditions, headIdx, index)) {
+        return true;
+      }
     }
 
     return false;
@@ -945,7 +1036,9 @@ class TransitionProcessor extends LogicProcessor {
 
     // Case 2: Head
     const pairIndex = this.findPairIndex(conditions, index);
-    if (pairIndex === -1) return new StandardConditionProcessor().process(ctx, conditions, index);
+    if (pairIndex === -1) {
+      return new StandardConditionProcessor().process(ctx, conditions, index);
+    }
 
     const condA = conditions[index];
     const condPair = conditions[pairIndex];
@@ -974,37 +1067,36 @@ class TransitionProcessor extends LogicProcessor {
 
     let suffix = "";
     const currFlag = currCond.flag ? currCond.flag.name : "";
-    if (currFlag === "Measured%") suffix = ". This condition also acts as a Measured% indicator";
-    else if (currFlag.startsWith("Measured"))
+    if (currFlag === "Measured%") {
+      suffix = ". This condition also acts as a Measured% indicator";
+    } else if (currFlag.startsWith("Measured")) {
       suffix = `. This condition will also display a Measured Indicator`;
+    }
 
     let text = "";
     const valuesMatch = prevVal === currVal;
 
     if (prevCond.op === "=" && currCond.op === "=") {
       // Check if values are identical to say "stays at" instead of "changes from X to X"
-      if (valuesMatch) text = `${name} stays at ${currVal}${suffix}`;
-      else text = `${name} changes from ${prevVal}${prevLabel} to ${currVal}${suffix}`;
-    } else if (prevCond.op === "!=" && currCond.op === "=" && valuesMatch)
+      if (valuesMatch) {
+        text = `${name} stays at ${currVal}${suffix}`;
+      } else {
+        text = `${name} changes from ${prevVal}${prevLabel} to ${currVal}${suffix}`;
+      }
+    } else if (prevCond.op === "!=" && currCond.op === "=" && valuesMatch) {
       text = `${name} becomes ${currVal}${suffix}`;
-    else if (prevCond.op === "=" && currCond.op === "!=" && valuesMatch)
+    } else if (prevCond.op === "=" && currCond.op === "!=" && valuesMatch) {
       text = `${name} changed from ${prevVal}${prevLabel}${suffix}`;
-    else if (prevCond.op === "<" && currCond.op === ">=" && valuesMatch)
+    } else if (prevCond.op === "<" && currCond.op === ">=" && valuesMatch) {
       text = `${name} increases to at least ${currVal}${suffix}`;
-    else if (prevCond.op === "<=" && currCond.op === ">" && valuesMatch)
+    } else if (prevCond.op === "<=" && currCond.op === ">" && valuesMatch) {
       text = `${name} increases to more than ${currVal}${suffix}`;
-    else if (prevCond.op === ">" && currCond.op === "<=" && valuesMatch)
+    } else if (prevCond.op === ">" && currCond.op === "<=" && valuesMatch) {
       text = `${name} decreases to at most ${currVal}${suffix}`;
-    else if (prevCond.op === ">=" && currCond.op === "<" && valuesMatch)
+    } else if (prevCond.op === ">=" && currCond.op === "<" && valuesMatch) {
       text = `${name} decreases to less than ${currVal}${suffix}`;
-    else {
+    } else {
       // Grammar normalization
-      const cleanOp = (txt) => {
-        if (txt === "is") return "";
-        if (txt.startsWith("is ")) return txt.substring(3);
-        return txt;
-      };
-
       const prevOp = cleanOp(ctx.getOperatorText(prevCond.op));
       const currOp = cleanOp(ctx.getOperatorText(currCond.op));
 
@@ -1040,15 +1132,21 @@ class TransitionProcessor extends LogicProcessor {
 
   findPairIndex(conditions, index) {
     const condA = conditions[index];
-    if (condA.hits > 0 || !condA.rhs || condA.rhs.type !== ReqType.VALUE) return -1;
+    if (condA.hits > 0 || !condA.rhs || condA.rhs.type !== ReqType.VALUE) {
+      return -1;
+    }
 
     const aIsDelta = condA.lhs.type === ReqType.DELTA || condA.lhs.type === ReqType.PRIOR;
     const aIsMem = condA.lhs.type === ReqType.MEM;
-    if (!aIsDelta && !aIsMem) return -1;
+    if (!aIsDelta && !aIsMem) {
+      return -1;
+    }
 
     for (let j = index + 1; j < conditions.length; j++) {
       const condB = conditions[j];
-      if (condB.flag && condB.flag.name === "AddAddress") continue;
+      if (condB.flag && condB.flag.name === "AddAddress") {
+        continue;
+      }
 
       const f = condB.flag ? condB.flag.name : "";
 
@@ -1061,14 +1159,20 @@ class TransitionProcessor extends LogicProcessor {
         f === "AndNext" ||
         f === "OrNext" ||
         f === "ResetNextIf";
-      if (!isValidFlag) return -1;
+      if (!isValidFlag) {
+        return -1;
+      }
 
-      if (condB.hits > 0 || !condB.rhs || condB.rhs.type !== ReqType.VALUE) continue;
+      if (condB.hits > 0 || !condB.rhs || condB.rhs.type !== ReqType.VALUE) {
+        continue;
+      }
 
       const bIsDelta = condB.lhs.type === ReqType.DELTA || condB.lhs.type === ReqType.PRIOR;
       const bIsMem = condB.lhs.type === ReqType.MEM;
 
-      if ((aIsDelta && bIsDelta) || (aIsMem && bIsMem)) continue;
+      if ((aIsDelta && bIsDelta) || (aIsMem && bIsMem)) {
+        continue;
+      }
 
       if (condA.lhs.value === condB.lhs.value && condA.lhs.size === condB.lhs.size) {
         return j;
@@ -1079,26 +1183,40 @@ class TransitionProcessor extends LogicProcessor {
 
   findHeadIndex(conditions, index) {
     const condB = conditions[index];
-    if (condB.hits > 0 || !condB.rhs || condB.rhs.type !== ReqType.VALUE) return -1;
+    if (condB.hits > 0 || !condB.rhs || condB.rhs.type !== ReqType.VALUE) {
+      return -1;
+    }
 
     const bIsDelta = condB.lhs.type === ReqType.DELTA || condB.lhs.type === ReqType.PRIOR;
     const bIsMem = condB.lhs.type === ReqType.MEM;
-    if (!bIsDelta && !bIsMem) return -1;
+    if (!bIsDelta && !bIsMem) {
+      return -1;
+    }
 
     for (let j = index - 1; j >= 0; j--) {
       const condA = conditions[j];
-      if (condA.flag && condA.flag.name === "AddAddress") continue;
+      if (condA.flag && condA.flag.name === "AddAddress") {
+        continue;
+      }
 
-      if (condA.hits > 0 || !condA.rhs || condA.rhs.type !== ReqType.VALUE) continue;
+      if (condA.hits > 0 || !condA.rhs || condA.rhs.type !== ReqType.VALUE) {
+        continue;
+      }
 
       const aIsDelta = condA.lhs.type === ReqType.DELTA || condA.lhs.type === ReqType.PRIOR;
       const aIsMem = condA.lhs.type === ReqType.MEM;
 
-      if ((aIsDelta && bIsDelta) || (aIsMem && bIsMem)) continue;
-      if (!aIsDelta && !aIsMem) continue;
+      if ((aIsDelta && bIsDelta) || (aIsMem && bIsMem)) {
+        continue;
+      }
+      if (!aIsDelta && !aIsMem) {
+        continue;
+      }
 
       if (condA.lhs.value === condB.lhs.value && condA.lhs.size === condB.lhs.size) {
-        if (this.findPairIndex(conditions, j) === index) return j;
+        if (this.findPairIndex(conditions, j) === index) {
+          return j;
+        }
       }
     }
     return -1;
@@ -1106,7 +1224,9 @@ class TransitionProcessor extends LogicProcessor {
 
   isInterrupted(conditions, start, end) {
     for (let k = start + 1; k < end; k++) {
-      if (!conditions[k].flag || conditions[k].flag.name !== "AddAddress") return true;
+      if (!conditions[k].flag || conditions[k].flag.name !== "AddAddress") {
+        return true;
+      }
     }
     return false;
   }
@@ -1118,16 +1238,26 @@ class SequenceProcessor extends LogicProcessor {
     return 14;
   }
   canProcess(conditions, index) {
-    if (index + 3 >= conditions.length) return false;
+    if (index + 3 >= conditions.length) {
+      return false;
+    }
 
-    if (!this.isTransitionPair(conditions[index], conditions[index + 1])) return false;
-    if (!this.isTransitionPair(conditions[index + 2], conditions[index + 3])) return false;
+    if (!this.isTransitionPair(conditions[index], conditions[index + 1])) {
+      return false;
+    }
+    if (!this.isTransitionPair(conditions[index + 2], conditions[index + 3])) {
+      return false;
+    }
 
-    if (conditions[index].lhs.value !== conditions[index + 2].lhs.value) return false;
+    if (conditions[index].lhs.value !== conditions[index + 2].lhs.value) {
+      return false;
+    }
 
     const c1 = conditions[index + 1];
     const c2 = conditions[index + 2];
-    if (!c1.rhs || !c2.rhs) return false;
+    if (!c1.rhs || !c2.rhs) {
+      return false;
+    }
 
     const end1 = this.parseValue(c1.rhs.value);
     const start2 = this.parseValue(c2.rhs.value);
@@ -1154,14 +1284,20 @@ class SequenceProcessor extends LogicProcessor {
       const condA = conditions[currentIdx];
       const condB = conditions[currentIdx + 1];
 
-      if (!this.isTransitionPair(condA, condB)) break;
-      if (condA.lhs.value !== conditions[index].lhs.value) break;
+      if (!this.isTransitionPair(condA, condB)) {
+        break;
+      }
+      if (condA.lhs.value !== conditions[index].lhs.value) {
+        break;
+      }
 
       const valA = this.parseValue(condA.rhs.value);
       const valB = this.parseValue(condB.rhs.value);
 
       if (conditionsConsumed > 0) {
-        if (valA !== lastEndValue) break;
+        if (valA !== lastEndValue) {
+          break;
+        }
       }
 
       lastEndValue = valB;
@@ -1188,21 +1324,29 @@ class SequenceProcessor extends LogicProcessor {
 
   isTransitionPair(a, b) {
     const flagA = a.flag ? a.flag.name : "";
-    if (flagA !== "AndNext") return false;
+    if (flagA !== "AndNext") {
+      return false;
+    }
 
     const aIsPriorOrDelta = a.lhs.type === ReqType.PRIOR || a.lhs.type === ReqType.DELTA;
     const bIsMem = b.lhs.type === ReqType.MEM;
 
-    if (!aIsPriorOrDelta || !bIsMem) return false;
-    if (a.lhs.value !== b.lhs.value) return false;
+    if (!aIsPriorOrDelta || !bIsMem) {
+      return false;
+    }
+    if (a.lhs.value !== b.lhs.value) {
+      return false;
+    }
 
     return true;
   }
 
   parseValue(val) {
-    if (typeof val === "number") return val;
+    if (typeof val === "number") {
+      return val;
+    }
     const clean = val.toString().trim().replace("0x", "");
-    return parseInt(clean, 16);
+    return Number.parseInt(clean, 16);
   }
 }
 
@@ -1219,11 +1363,14 @@ class AsciiStringProcessor extends LogicProcessor {
       !cond.rhs ||
       cond.rhs.type !== ReqType.VALUE ||
       cond.op !== "="
-    )
+    ) {
       return false;
+    }
 
     const flag = cond.flag ? cond.flag.name : "";
-    if (flag && flag !== "Trigger") return false;
+    if (flag && flag !== "Trigger") {
+      return false;
+    }
 
     return true;
   }
@@ -1258,7 +1405,9 @@ class AsciiStringProcessor extends LogicProcessor {
 
     // 3. Get Base Note (with Redirects)
     const note = ConditionFormatter.getEffectiveNote(ctx.notesLookup, baseAddr);
-    if (!note) return "";
+    if (!note) {
+      return "";
+    }
 
     // 4. Traverse Node Tree
     let targetNode = null;
@@ -1268,20 +1417,14 @@ class AsciiStringProcessor extends LogicProcessor {
       if (note.noteNodes) {
         targetNode = note.noteNodes.find((n) => n.indentLevel === -2) || note.noteNodes[0];
       }
-      if (!targetNode) return note.note;
+      if (!targetNode) {
+        return note.note;
+      }
     } else if (note.noteNodes) {
       // Pointer Traversal
       let currentLevelNodes = note.noteNodes.filter(
         (n) => n.indentLevel !== -2 && (!n.parent || n.parent.indentLevel === -1),
       );
-
-      const parseOff = (s) => {
-        let clean = s.replace("+", "").replace("-", "").trim();
-        if (clean.startsWith("0x")) clean = clean.substring(2);
-        let v = parseInt(clean, 16);
-        if (s.includes("-")) v = -v;
-        return v;
-      };
 
       for (let i = 0; i < offsets.length; i++) {
         const off = offsets[i];
@@ -1316,19 +1459,22 @@ class AsciiStringProcessor extends LogicProcessor {
 
   processExplicitString(ctx, conditions, index, baseName, forceStringMode) {
     const startCond = conditions[index];
-    let collectedBytes = [];
+    const collectedBytes = [];
     let collectedHex = "";
     let count = 0;
 
     // Helper to get effective address of a condition by resolving its pointer chain
     const resolveEffectiveAddress = (idx) => {
       const chainInfo = ctx.buildChainInfo(idx);
+      // oxlint-disable-next-line no-unused-vars
       let baseAddr = conditions[idx].lhs.value;
       let offsetSum = 0;
 
       if (chainInfo.length > 0) {
         const baseObj = chainInfo.find((x) => x.type === "base");
-        if (baseObj) baseAddr = baseObj.value;
+        if (baseObj) {
+          baseAddr = baseObj.value;
+        }
 
         chainInfo
           .filter((x) => x.type === "offset")
@@ -1345,7 +1491,9 @@ class AsciiStringProcessor extends LogicProcessor {
     // Capture initial pointer chain structure to ensure subsequent lines match the same pointer
     const getPointerFingerprint = (idx) => {
       const chain = ctx.buildChainInfo(idx);
-      if (chain.length === 0) return "";
+      if (chain.length === 0) {
+        return "";
+      }
       const base = chain.find((x) => x.type === "base");
       return base ? base.value.toString() : "";
     };
@@ -1353,8 +1501,8 @@ class AsciiStringProcessor extends LogicProcessor {
     const startFingerprint = getPointerFingerprint(index);
 
     const processValue = (val, sizeObj) => {
-      let size = this.getByteSize(sizeObj);
-      let isBigEndian = sizeObj && sizeObj.name && sizeObj.name.includes("BE");
+      const size = this.getByteSize(sizeObj);
+      const isBigEndian = sizeObj && sizeObj.name && sizeObj.name.includes("BE");
 
       collectedHex += val
         .toString(16)
@@ -1391,27 +1539,36 @@ class AsciiStringProcessor extends LogicProcessor {
         skippedLines++;
       }
 
-      if (scan >= conditions.length) break;
+      if (scan >= conditions.length) {
+        break;
+      }
 
       const next = conditions[scan];
 
       const nextFlag = next.flag ? next.flag.name : "";
       const startFlag = startCond.flag ? startCond.flag.name : "";
 
-      if (nextFlag !== startFlag) break;
+      if (nextFlag !== startFlag) {
+        break;
+      }
       if (
         next.lhs.type !== ReqType.MEM ||
         !next.rhs ||
         next.rhs.type !== ReqType.VALUE ||
         next.op !== "="
-      )
+      ) {
         break;
+      }
 
       // Check if it belongs to the same Pointer (if applicable)
-      if (startFingerprint && getPointerFingerprint(scan) !== startFingerprint) break;
+      if (startFingerprint && getPointerFingerprint(scan) !== startFingerprint) {
+        break;
+      }
 
       const nextAddr = next.lhs.value; // This is the offset if inside a pointer chain
-      if (nextAddr !== currentAddr + currentSize) break;
+      if (nextAddr !== currentAddr + currentSize) {
+        break;
+      }
 
       const nextSize = this.getByteSize(next.lhs.size);
       processValue(next.rhs.value, next.lhs.size);
@@ -1428,19 +1585,22 @@ class AsciiStringProcessor extends LogicProcessor {
 
     if (count > 1 || (count === 1 && forceStringMode)) {
       if (!forceStringMode) {
-        if (collectedBytes.length < 3)
+        if (collectedBytes.length < 3) {
           return new StandardConditionProcessor().process(ctx, conditions, index);
+        }
         const printable = collectedBytes.filter((b) => b >= 0x20 && b <= 0x7e).length;
-        if (printable / collectedBytes.length < 0.7)
+        if (printable / collectedBytes.length < 0.7) {
           return new StandardConditionProcessor().process(ctx, conditions, index);
+        }
       }
 
-      let cleanName = baseName.replace(/\s*\+0x[0-9A-Fa-f]+/g, "");
-      if (cleanName.startsWith("[") && cleanName.endsWith("]"))
-        cleanName = cleanName.substring(1, cleanName.length - 1);
+      let cleanName = baseName.replaceAll(/\s*\+0x[0-9A-Fa-f]+/g, "");
+      if (cleanName.startsWith("[") && cleanName.endsWith("]")) {
+        cleanName = cleanName.slice(1, cleanName.length - 1);
+      }
       cleanName = cleanName.trim();
 
-      let asciiString = collectedBytes
+      const asciiString = collectedBytes
         .map((b) => (b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : "."))
         .join("");
 
@@ -1458,12 +1618,22 @@ class AsciiStringProcessor extends LogicProcessor {
   }
 
   getByteSize(sizeObj) {
-    if (!sizeObj) return 4;
+    if (!sizeObj) {
+      return 4;
+    }
     const name = sizeObj.name || sizeObj;
-    if (name.includes("8-bit")) return 1;
-    if (name.includes("16-bit")) return 2;
-    if (name.includes("24-bit")) return 3;
-    if (name.includes("32-bit")) return 4;
+    if (name.includes("8-bit")) {
+      return 1;
+    }
+    if (name.includes("16-bit")) {
+      return 2;
+    }
+    if (name.includes("24-bit")) {
+      return 3;
+    }
+    if (name.includes("32-bit")) {
+      return 4;
+    }
     return 4;
   }
 }
@@ -1478,7 +1648,9 @@ class MathChainProcessor extends LogicProcessor {
     const cond = conditions[index];
     const f = cond.flag ? cond.flag.name : "";
 
-    if (f !== "Remember") return false;
+    if (f !== "Remember") {
+      return false;
+    }
 
     const op = cond.op;
     return op === "+" || op === "-" || op === "*" || op === "/" || op === "%";
@@ -1515,15 +1687,21 @@ class MathChainProcessor extends LogicProcessor {
       let right = "";
 
       // Get Operand Text
-      if (cond.lhs.type === ReqType.RECALL) left = currentExpression;
-      else left = ctx.getOperandText(cond.lhs, ptr, false, "", "", true);
+      if (cond.lhs.type === ReqType.RECALL) {
+        left = currentExpression;
+      } else {
+        left = ctx.getOperandText(cond.lhs, ptr, false, "", "", true);
+      }
 
       // Check RHS Safety
       // Pass true for suppressBooleans since we are in arithmetic context
-      if (cond.rhs && cond.rhs.type === ReqType.RECALL) right = currentExpression;
-      else if (cond.rhs)
+      if (cond.rhs && cond.rhs.type === ReqType.RECALL) {
+        right = currentExpression;
+      } else if (cond.rhs) {
         right = ctx.getOperandText(cond.rhs, ptr, true, cond.lhs.value, cond.lhs.size, true, true);
-      else right = "0"; // Fallback
+      } else {
+        right = "0";
+      } // Fallback
 
       // Simplify 0+X, X*1, etc.
       const leftIsZero = this.isZero(cond.lhs);
@@ -1532,9 +1710,13 @@ class MathChainProcessor extends LogicProcessor {
       const rightIsOne = cond.rhs ? this.isOne(cond.rhs) : false;
 
       if (op === "+") {
-        if (leftIsZero) currentExpression = right;
-        else if (rightIsZero) currentExpression = left;
-        else currentExpression = `(${left} + ${right})`;
+        if (leftIsZero) {
+          currentExpression = right;
+        } else if (rightIsZero) {
+          currentExpression = left;
+        } else {
+          currentExpression = `(${left} + ${right})`;
+        }
       } else if (op === "-" && rightIsZero) {
         currentExpression = left;
       } else if (op === "*" && (leftIsOne || rightIsOne)) {
@@ -1544,8 +1726,12 @@ class MathChainProcessor extends LogicProcessor {
       } else {
         // Wrap previous expression if needed
         if (currentExpression && currentExpression.includes(" ")) {
-          if (cond.lhs.type === ReqType.RECALL) left = `(${left})`;
-          if (cond.rhs && cond.rhs.type === ReqType.RECALL) right = `(${right})`;
+          if (cond.lhs.type === ReqType.RECALL) {
+            left = `(${left})`;
+          }
+          if (cond.rhs && cond.rhs.type === ReqType.RECALL) {
+            right = `(${right})`;
+          }
         }
 
         currentExpression = `${left} ${op} ${right}`;
@@ -1559,7 +1745,7 @@ class MathChainProcessor extends LogicProcessor {
     if (currentExpression) {
       // Clean up outer parens for display cleanliness
       if (currentExpression.startsWith("(") && currentExpression.endsWith(")")) {
-        ctx.lastRemembered = currentExpression.substring(1, currentExpression.length - 1);
+        ctx.lastRemembered = currentExpression.slice(1, currentExpression.length - 1);
       } else {
         ctx.lastRemembered = currentExpression;
       }
@@ -1576,8 +1762,14 @@ class MathChainProcessor extends LogicProcessor {
           const c = conditions[scan];
           const f = c.flag ? c.flag.name : "";
 
-          if (!f.includes("Add") && !f.includes("Sub") && !f.includes("Next") && f !== "AddAddress")
+          if (
+            !f.includes("Add") &&
+            !f.includes("Sub") &&
+            !f.includes("Next") &&
+            f !== "AddAddress"
+          ) {
             break;
+          }
 
           // Check LHS or RHS for Recall
           // Safety check for RHS
@@ -1624,7 +1816,9 @@ class MathChainProcessor extends LogicProcessor {
       const leftIsRecall = cond.lhs.type === ReqType.RECALL;
       const rightIsRecall = cond.rhs && cond.rhs.type === ReqType.RECALL;
 
-      if (!leftIsRecall && !rightIsRecall) break;
+      if (!leftIsRecall && !rightIsRecall) {
+        break;
+      }
 
       if (f === "Measured%") {
         const limit = leftIsRecall
@@ -1661,14 +1855,22 @@ class MathChainProcessor extends LogicProcessor {
   }
 
   isZero(op) {
-    if (op.type === ReqType.FLOAT) return parseFloat(op.value) === 0;
-    if (op.type === ReqType.VALUE) return op.value === 0;
+    if (op.type === ReqType.FLOAT) {
+      return Number.parseFloat(op.value) === 0;
+    }
+    if (op.type === ReqType.VALUE) {
+      return op.value === 0;
+    }
     return false;
   }
 
   isOne(op) {
-    if (op.type === ReqType.FLOAT) return parseFloat(op.value) === 1.0;
-    if (op.type === ReqType.VALUE) return op.value === 1;
+    if (op.type === ReqType.FLOAT) {
+      return Number.parseFloat(op.value) === 1.0;
+    }
+    if (op.type === ReqType.VALUE) {
+      return op.value === 1;
+    }
     return false;
   }
 }
@@ -1684,7 +1886,9 @@ class AccumulatorProcessor extends LogicProcessor {
     const f = cond.flag ? cond.flag.name : "";
 
     // 1. Direct Accumulator Start
-    if (f === "AddSource" || f === "SubSource" || f === "AddHits" || f === "SubHits") return true;
+    if (f === "AddSource" || f === "SubSource" || f === "AddHits" || f === "SubHits") {
+      return true;
+    }
 
     // 2. Logic Chain Start
     const isPotentialLead =
@@ -1697,7 +1901,9 @@ class AccumulatorProcessor extends LogicProcessor {
           scan++;
           continue;
         }
-        if (sf.includes("Add") || sf.includes("Sub")) return true;
+        if (sf.includes("Add") || sf.includes("Sub")) {
+          return true;
+        }
         break;
       }
     }
@@ -1717,7 +1923,9 @@ class AccumulatorProcessor extends LogicProcessor {
 
     // Collect Chains Loop
     while (currentPtr < conditions.length) {
-      if (ctx.processedIndices.has(currentPtr)) break;
+      if (ctx.processedIndices.has(currentPtr)) {
+        break;
+      }
 
       const { chain, endPtr } = this.extractChain(conditions, currentPtr);
 
@@ -1726,10 +1934,14 @@ class AccumulatorProcessor extends LogicProcessor {
           // Check for barriers
           const currCond = conditions[currentPtr];
           const f = currCond.flag ? currCond.flag.name : "";
-          if (f === "ResetIf" || f === "PauseIf" || f === "OrNext") break;
+          if (f === "ResetIf" || f === "PauseIf" || f === "OrNext") {
+            break;
+          }
           currentPtr++;
           continue;
-        } else break;
+        } else {
+          break;
+        }
       }
 
       // Verify Accumulator Action
@@ -1748,17 +1960,21 @@ class AccumulatorProcessor extends LogicProcessor {
 
       // Valid Chain Found
       let termCond = null;
-      if (endPtr < conditions.length) termCond = conditions[endPtr];
+      if (endPtr < conditions.length) {
+        termCond = conditions[endPtr];
+      }
 
       // Link Check
       if (chains.length > 0) {
-        const prev = chains[chains.length - 1];
+        const prev = chains.at(-1);
         const prevConnected =
           prev.terminal &&
           prev.terminal.flag &&
           (prev.terminal.flag.name === "OrNext" || prev.terminal.flag.name === "AndNext");
         const skippedLines = currentPtr > prev.endIndex + 1;
-        if (prevConnected && skippedLines) break;
+        if (prevConnected && skippedLines) {
+          break;
+        }
 
         // Stop grouping if transitioning from Measured to MeasuredIf
         // This ensures MeasuredIf is treated as a conditional ("once...") rather than merged into the measurement string.
@@ -1784,7 +2000,7 @@ class AccumulatorProcessor extends LogicProcessor {
 
       // Terminal Stealing Logic
       if (chains.length > 0 && chainDef.conditions.length > 0) {
-        const prev = chains[chains.length - 1];
+        const prev = chains.at(-1);
         const first = chainDef.conditions[0];
         const ff = first.flag ? first.flag.name : "";
 
@@ -1806,7 +2022,9 @@ class AccumulatorProcessor extends LogicProcessor {
 
       chains.push(chainDef);
 
-      if (chains.length > 1) ctx.processedIndices.add(currentPtr);
+      if (chains.length > 1) {
+        ctx.processedIndices.add(currentPtr);
+      }
 
       const hasExplicitConnector =
         termCond &&
@@ -1819,8 +2037,9 @@ class AccumulatorProcessor extends LogicProcessor {
       }
     }
 
-    if (chains.length === 0)
+    if (chains.length === 0) {
       return new StandardConditionProcessor().process(ctx, conditions, index);
+    }
 
     // --- RECALL CONTEXT ---
     let recallContext = "";
@@ -1865,7 +2084,7 @@ class AccumulatorProcessor extends LogicProcessor {
 
     let isTransition = false;
     if (!hasHitsLogic && deltaChains.length > 0 && memChains.length > 0) {
-      const lastDelta = deltaChains[deltaChains.length - 1];
+      const lastDelta = deltaChains.at(-1);
       const termFlag =
         lastDelta.terminal && lastDelta.terminal.flag ? lastDelta.terminal.flag.name : "";
       if (!lastDelta.terminal || termFlag !== "OrNext") {
@@ -1890,11 +2109,14 @@ class AccumulatorProcessor extends LogicProcessor {
       const expandToken = `[[EXPAND:${id}:Show ${displayBlocks.length} conditions]]`;
 
       let suffix = "";
-      const finalMemChain = memChains[memChains.length - 1];
+      const finalMemChain = memChains.at(-1);
       if (finalMemChain.terminal && finalMemChain.terminal.flag) {
         const f = finalMemChain.terminal.flag.name;
-        if (f === "ResetIf") suffix = " (ResetIf)";
-        else if (f === "PauseIf") suffix = " (PauseIf)";
+        if (f === "ResetIf") {
+          suffix = " (ResetIf)";
+        } else if (f === "PauseIf") {
+          suffix = " (PauseIf)";
+        }
       }
 
       result.text = `Sum of ${displayBlocks.length} items ${expandToken} changes from (${fromText}) to (${toText})${suffix}`;
@@ -1908,11 +2130,11 @@ class AccumulatorProcessor extends LogicProcessor {
     }
 
     // --- MEASURED CONTEXT DETECTION ---
-    let finalTerminal = chains.length > 0 ? chains[chains.length - 1].terminal : null;
+    let finalTerminal = chains.length > 0 ? chains.at(-1).terminal : null;
     let isMeasuredContext = false;
     let measuredHeader = "";
 
-    const lastChainEnd = chains[chains.length - 1].endIndex;
+    const lastChainEnd = chains.at(-1).endIndex;
     if (lastChainEnd + 1 < conditions.length) {
       const nextCond = conditions[lastChainEnd + 1];
       const chainsUseHits = chains.some(
@@ -1980,9 +2202,11 @@ class AccumulatorProcessor extends LogicProcessor {
       // Array Detection
       let rangeEnd = i;
       while (rangeEnd + 1 < chains.length) {
-        if (this.areChainsStructureEqual(chains[i], chains[rangeEnd + 1], true, ignoreTerminal))
+        if (this.areChainsStructureEqual(chains[i], chains[rangeEnd + 1], true, ignoreTerminal)) {
           rangeEnd++;
-        else break;
+        } else {
+          break;
+        }
       }
 
       const count = rangeEnd - i + 1;
@@ -1999,8 +2223,11 @@ class AccumulatorProcessor extends LogicProcessor {
         }
 
         let showVal = true;
-        if (isMeasuredContext) showVal = false;
-        else if (chainHasHits && (!terminal || terminal.hits === 0)) showVal = false;
+        if (isMeasuredContext) {
+          showVal = false;
+        } else if (chainHasHits && (!terminal || terminal.hits === 0)) {
+          showVal = false;
+        }
 
         const termRhsSafe =
           terminal && terminal.rhs ? terminal.rhs : { value: 0, type: ReqType.VALUE };
@@ -2013,12 +2240,15 @@ class AccumulatorProcessor extends LogicProcessor {
 
         let prefix = "";
         if (isTriggerStart) {
-          if (terminal && terminal.flag && terminal.flag.name === "PauseIf") prefix = "Pause when ";
-          else if (terminal && terminal.flag && terminal.flag.name === "ResetIf")
+          if (terminal && terminal.flag && terminal.flag.name === "PauseIf") {
+            prefix = "Pause when ";
+          } else if (terminal && terminal.flag && terminal.flag.name === "ResetIf") {
             prefix = "Reset when ";
-          else if (terminal && terminal.flag && terminal.flag.name === "Trigger")
+          } else if (terminal && terminal.flag && terminal.flag.name === "Trigger") {
             prefix = "Trigger when ";
-          else prefix = "Activate when ";
+          } else {
+            prefix = "Activate when ";
+          }
           isTriggerStart = false;
         }
 
@@ -2098,6 +2328,7 @@ class AccumulatorProcessor extends LogicProcessor {
               term.hits > 0
                 ? term.hits.toString()
                 : ctx.formatValue(termRhsSafe, conditions.indexOf(term));
+            // oxlint-disable-next-line no-unused-vars
             const opText = ctx.getOperatorText(term.op);
 
             if (isMeasuredContext) {
@@ -2121,8 +2352,11 @@ class AccumulatorProcessor extends LogicProcessor {
           } else {
             const isHitChain = chain.conditions.some((c) => c.flag && c.flag.name.includes("Hits"));
             let showVal = true;
-            if (isMeasuredContext) showVal = false;
-            else if (isHitChain && term.hits === 0) showVal = false;
+            if (isMeasuredContext) {
+              showVal = false;
+            } else if (isHitChain && term.hits === 0) {
+              showVal = false;
+            }
 
             let valText = "";
             let opText = "";
@@ -2146,19 +2380,24 @@ class AccumulatorProcessor extends LogicProcessor {
               prefix = "Reset the achievement when ";
               result.category = ExplanationCategory.Reset;
             } else if (isTriggerStart) {
-              if (tFlag === "Trigger") prefix = "Trigger when ";
-              else prefix = "Accumulator: ";
+              if (tFlag === "Trigger") {
+                prefix = "Trigger when ";
+              } else {
+                prefix = "Accumulator: ";
+              }
             }
 
             // Reset trigger start for next loop unless we just set it
             isTriggerStart = false;
 
             if (isHitChain) {
-              if (showVal)
+              if (showVal) {
                 chainText = hasRecallContext
                   ? `${prefix}${recallContext} occurs at least ${valText} times: ${expandToken}`
                   : `${prefix}at least ${valText} hits of the following occur: ${expandToken}`;
-              else chainText = `${prefix}the following occur: ${expandToken}`;
+              } else {
+                chainText = `${prefix}the following occur: ${expandToken}`;
+              }
             } else {
               if (opText && valText) {
                 chainText = `${prefix}sum of ${displayBlocks.length} ${noun} ${expandToken} ${opText} ${valText}`;
@@ -2221,7 +2460,9 @@ class AccumulatorProcessor extends LogicProcessor {
         buffer.push(c);
       } else if (f === "AndNext" || f === "OrNext" || f === "ResetNextIf") {
         const isSourceMath = accumType === "AddSource" || accumType === "SubSource";
-        if (hasAccumulator && f === "OrNext" && isSourceMath) break;
+        if (hasAccumulator && f === "OrNext" && isSourceMath) {
+          break;
+        }
 
         buffer.push(c);
       } else if (f.includes("Add") || f.includes("Sub")) {
@@ -2236,10 +2477,12 @@ class AccumulatorProcessor extends LogicProcessor {
       ptr++;
     }
 
-    if (!hasAccumulator && chain.length === 0) return { chain: [], endPtr: start };
+    if (!hasAccumulator && chain.length === 0) {
+      return { chain: [], endPtr: start };
+    }
 
     chain.push(...buffer);
-    return { chain: chain, endPtr: ptr };
+    return { chain, endPtr: ptr };
   }
 
   prepareDisplayBlocks(chain) {
@@ -2254,7 +2497,9 @@ class AccumulatorProcessor extends LogicProcessor {
         currentBlock = [];
       }
     }
-    if (currentBlock.length > 0) blocks.push(currentBlock);
+    if (currentBlock.length > 0) {
+      blocks.push(currentBlock);
+    }
 
     if (chain.terminal) {
       const t = chain.terminal;
@@ -2263,9 +2508,9 @@ class AccumulatorProcessor extends LogicProcessor {
       if (!isDummy) {
         if (
           blocks.length > 0 &&
-          blocks[blocks.length - 1].every((c) => c.flag && c.flag.name === "AddAddress")
+          blocks.at(-1).every((c) => c.flag && c.flag.name === "AddAddress")
         ) {
-          blocks[blocks.length - 1].push(t);
+          blocks.at(-1).push(t);
         } else {
           blocks.push([t]);
         }
@@ -2279,8 +2524,10 @@ class AccumulatorProcessor extends LogicProcessor {
     const seen = new Set();
 
     for (const block of blocks) {
-      if (block.length === 0) continue;
-      const leaf = block[block.length - 1];
+      if (block.length === 0) {
+        continue;
+      }
+      const leaf = block.at(-1);
 
       if (leaf.lhs.type === ReqType.RECALL) {
         unique.push(block);
@@ -2306,7 +2553,9 @@ class AccumulatorProcessor extends LogicProcessor {
     for (const block of blocks) {
       for (let i = 0; i < block.length; i++) {
         const c = block[i];
-        if (c.flag && c.flag.name === "AddAddress") continue;
+        if (c.flag && c.flag.name === "AddAddress") {
+          continue;
+        }
         const isTerm = terminal && c === terminal;
 
         // Explain Single
@@ -2321,7 +2570,7 @@ class AccumulatorProcessor extends LogicProcessor {
           if (c.op === "&") {
             // Keep fullText as just 'left'
           } else {
-            let right = ctx.getOperandText(
+            const right = ctx.getOperandText(
               c.rhs,
               ctx.group.indexOf(c),
               true,
@@ -2330,9 +2579,11 @@ class AccumulatorProcessor extends LogicProcessor {
               false,
               isArithmetic,
             );
-            let op = ctx.getOperatorText(c.op);
-            let hits = c.hits > 0 ? ` (occurs ${c.hits} times)` : "";
-            if (left.includes("{recall}")) left = "recalled value";
+            const op = ctx.getOperatorText(c.op);
+            const hits = c.hits > 0 ? ` (occurs ${c.hits} times)` : "";
+            if (left.includes("{recall}")) {
+              left = "recalled value";
+            }
             fullText = `${left} ${op} ${right}${hits}`;
           }
         }
@@ -2356,50 +2607,74 @@ class AccumulatorProcessor extends LogicProcessor {
 
   areChainsStructureEqual(c1, c2, ignoreAddresses, ignoreTerminal) {
     if (!ignoreTerminal) {
-      if (!c1.terminal !== !c2.terminal) return false;
+      if (!c1.terminal !== !c2.terminal) {
+        return false;
+      }
 
       if (c1.terminal && c2.terminal) {
         const flag1 = c1.terminal.flag ? c1.terminal.flag.name : "";
         const flag2 = c2.terminal.flag ? c2.terminal.flag.name : "";
 
-        if (flag1 !== flag2) return false;
-        if (c1.terminal.op !== c2.terminal.op) return false;
+        if (flag1 !== flag2) {
+          return false;
+        }
+        if (c1.terminal.op !== c2.terminal.op) {
+          return false;
+        }
 
         if (!c1.terminal.rhs && !c2.terminal.rhs) {
           // Match
         } else if (!c1.terminal.rhs || !c2.terminal.rhs) {
           return false;
         } else {
-          if (c1.terminal.rhs.value !== c2.terminal.rhs.value) return false;
+          if (c1.terminal.rhs.value !== c2.terminal.rhs.value) {
+            return false;
+          }
         }
       }
     }
 
-    if (c1.conditions.length !== c2.conditions.length) return false;
+    if (c1.conditions.length !== c2.conditions.length) {
+      return false;
+    }
     for (let i = 0; i < c1.conditions.length; i++) {
       const cond1 = c1.conditions[i];
       const cond2 = c2.conditions[i];
       const f1 = cond1.flag ? cond1.flag.name : "";
       const f2 = cond2.flag ? cond2.flag.name : "";
 
-      if (f1 !== f2) return false;
-      if (!ignoreAddresses && cond1.lhs.value !== cond2.lhs.value) return false;
+      if (f1 !== f2) {
+        return false;
+      }
+      if (!ignoreAddresses && cond1.lhs.value !== cond2.lhs.value) {
+        return false;
+      }
 
-      if (cond1.lhs.type !== cond2.lhs.type && f1 === "AddAddress") return false;
-      if (cond1.lhs.size !== cond2.lhs.size) return false;
-      if (cond1.op !== cond2.op) return false;
+      if (cond1.lhs.type !== cond2.lhs.type && f1 === "AddAddress") {
+        return false;
+      }
+      if (cond1.lhs.size !== cond2.lhs.size) {
+        return false;
+      }
+      if (cond1.op !== cond2.op) {
+        return false;
+      }
     }
     return true;
   }
 
   // Helpers for Transition Logic
   formatTerminalCondition(cond, ctx, conditions) {
-    if (!cond) return "(No Check)";
+    if (!cond) {
+      return "(No Check)";
+    }
     const rhsVal = cond.rhs
       ? ctx.formatValue(cond.rhs, conditions.indexOf(cond), cond.lhs.value, cond.lhs.size)
       : "0";
     const op = cond.op;
-    if (op === "=") return rhsVal;
+    if (op === "=") {
+      return rhsVal;
+    }
     return `${op} ${rhsVal}`;
   }
 
@@ -2409,8 +2684,11 @@ class AccumulatorProcessor extends LogicProcessor {
     while (i < chains.length) {
       let rangeEnd = i;
       while (rangeEnd + 1 < chains.length) {
-        if (this.areChainsStructureEqual(chains[i], chains[rangeEnd + 1], false, false)) rangeEnd++;
-        else break;
+        if (this.areChainsStructureEqual(chains[i], chains[rangeEnd + 1], false, false)) {
+          rangeEnd++;
+        } else {
+          break;
+        }
       }
 
       if (i > 0) {
@@ -2446,6 +2724,13 @@ class AccumulatorProcessor extends LogicProcessor {
 // Main Controller
 // --------------------------------------------------
 
+const isMem = (t) =>
+  t === ReqType.MEM ||
+  t === ReqType.DELTA ||
+  t === ReqType.PRIOR ||
+  t === ReqType.BCD ||
+  t === ReqType.INVERT;
+
 export class LogicExplainer {
   static processors = [
     new PointerCleanupProcessor(),
@@ -2465,11 +2750,10 @@ export class LogicExplainer {
   static getRegionKeywords(group, notesLookup) {
     // Match regions either enclosed in brackets/parentheses e.g. [US], (PAL)
     // OR as standalone words e.g. "USA", "Europe", "SLUS"
-    const regions =
-      "US|USA|PAL|EU|EUR|Europe|JAP|JP|Japan|UK|KOR|Korea|Serial|SLUS|SLES|SCUS|SCES|SLPM|NTSC|NTSC\\-U|NTSC\\-J";
+    const regions = String.raw`US|USA|PAL|EU|EUR|Europe|JAP|JP|Japan|UK|KOR|Korea|Serial|SLUS|SLES|SCUS|SCES|SLPM|NTSC|NTSC\-U|NTSC\-J`;
     const keywords = new RegExp(`(?:\\[|\\()(?:${regions})(?:\\]|\\))|\\b(?:${regions})\\b`, "ig");
 
-    let found = new Set();
+    const found = new Set();
 
     for (const req of group) {
       for (const op of [req.lhs, req.rhs]) {
@@ -2482,9 +2766,9 @@ export class LogicExplainer {
 
             const matches = firstLine.match(keywords);
             if (matches) {
-              for (let m of matches) {
+              for (const m of matches) {
                 // Clean brackets/parentheses and uppercase it
-                const cleanMatch = m.replace(/[\[\]\(\)]/g, "").toUpperCase();
+                const cleanMatch = m.replaceAll(/[[\]()]/g, "").toUpperCase();
 
                 // Prevent false positives on the English word "us" (e.g. "gives us health")
                 // Only accept "US" if it was capitalized in the raw note, OR if it was explicitly bracketed
@@ -2506,7 +2790,7 @@ export class LogicExplainer {
 
   static explainAsset(asset, groups, notesLookup, rangeCache, showDecimal) {
     let mainText = "";
-    let detailedInfo = {}; // Map<string, string>
+    const detailedInfo = {}; // Map<string, string>
 
     if (!groups || groups.length === 0) {
       mainText += "No logic defined.";
@@ -2602,13 +2886,17 @@ export class LogicExplainer {
     const processedIndices = new Set();
 
     for (let i = 0; i < groupWrappers.length; i++) {
-      if (processedIndices.has(i)) continue;
+      if (processedIndices.has(i)) {
+        continue;
+      }
 
       const currentFP = LogicExplainer.getCoreLogicFingerprint(groupWrappers[i].group);
       const matchingIndices = [i];
 
       for (let j = i + 1; j < groupWrappers.length; j++) {
-        if (processedIndices.has(j)) continue;
+        if (processedIndices.has(j)) {
+          continue;
+        }
         if (LogicExplainer.getCoreLogicFingerprint(groupWrappers[j].group) === currentFP) {
           matchingIndices.push(j);
           processedIndices.add(j);
@@ -2647,7 +2935,7 @@ export class LogicExplainer {
         if (isArrayLogic) {
           // Array Logic
           const firstAlt = groupWrappers[matchingIndices[0]].index;
-          const lastAlt = groupWrappers[matchingIndices[matchingIndices.length - 1]].index;
+          const lastAlt = groupWrappers[matchingIndices.at(-1)].index;
 
           if (isSequential) {
             sb += `### Alt ${firstAlt} - Alt ${lastAlt} (Array Logic):\n`;
@@ -2682,7 +2970,9 @@ export class LogicExplainer {
           let sbIndent = "";
           const lines = explanation.split(/\r\n|\r|\n/);
           for (const line of lines) {
-            if (line.trim()) sbIndent += "  " + line + "\n";
+            if (line.trim()) {
+              sbIndent += "  " + line + "\n";
+            }
           }
 
           const arrayId = crypto.randomUUID();
@@ -2802,12 +3092,18 @@ export class LogicExplainer {
         isUxHeader &&
         hasMeasured &&
         (r.text.startsWith("A Measured Indicator") || r.text.startsWith("Start measuring"))
-      )
+      ) {
         return false;
-      if (isUxHeader && r.category === ExplanationCategory.MeasuredIf) return false;
-      if (!r.text) return false;
-      if (isUxHeader && (r.text.startsWith("Always False") || r.text.startsWith("Always True")))
+      }
+      if (isUxHeader && r.category === ExplanationCategory.MeasuredIf) {
         return false;
+      }
+      if (!r.text) {
+        return false;
+      }
+      if (isUxHeader && (r.text.startsWith("Always False") || r.text.startsWith("Always True"))) {
+        return false;
+      }
       return true;
     };
 
@@ -2819,8 +3115,11 @@ export class LogicExplainer {
 
     if (isUxHeader) {
       if (hasMeasured) {
-        if (measuredRes) sb += measuredRes.text;
-        else sb += "A Measured Indicator will be displayed";
+        if (measuredRes) {
+          sb += measuredRes.text;
+        } else {
+          sb += "A Measured Indicator will be displayed";
+        }
 
         const mIfs = results.filter(
           (r) => r.category === ExplanationCategory.MeasuredIf && r !== measuredRes,
@@ -2835,19 +3134,30 @@ export class LogicExplainer {
               .replace(". (MeasuredIf)", ""),
           );
           sb += cleanedIfs.join(" AND ");
-          if (hasRemnants) sb += " and the following:\n";
-          else sb += ".\n";
+          if (hasRemnants) {
+            sb += " and the following:\n";
+          } else {
+            sb += ".\n";
+          }
         } else {
-          if (hasRemnants) sb += " once the following logic is satisfied:\n";
-          else sb += ".\n";
+          if (hasRemnants) {
+            sb += " once the following logic is satisfied:\n";
+          } else {
+            sb += ".\n";
+          }
         }
       } else if (hasTrigger) {
-        if (hasRemnants)
+        if (hasRemnants) {
           sb += "A Trigger Indicator is displayed once the following logic is satisfied:\n";
-        else sb += "A Trigger Indicator is displayed.\n";
+        } else {
+          sb += "A Trigger Indicator is displayed.\n";
+        }
       } else {
-        if (hasRemnants) sb += "Perform display logic when:\n";
-        else sb += "Display logic active.\n";
+        if (hasRemnants) {
+          sb += "Perform display logic when:\n";
+        } else {
+          sb += "Display logic active.\n";
+        }
       }
     }
 
@@ -2864,10 +3174,14 @@ export class LogicExplainer {
       const catResults = results.filter((r) => r.category === cat);
       if (cat === ExplanationCategory.Transition && catResults.length > 0) {
         const validLines = catResults.filter(isRemnant).map((r) => r.text.replace(/\.$/, ""));
-        if (validLines.length > 0) sb += `- Activate when ${validLines.join(" AND ")}.\n`;
+        if (validLines.length > 0) {
+          sb += `- Activate when ${validLines.join(" AND ")}.\n`;
+        }
       } else {
         for (const res of catResults) {
-          if (!isRemnant(res)) continue;
+          if (!isRemnant(res)) {
+            continue;
+          }
           sb += `- ${res.text}\n`;
         }
       }
@@ -2881,7 +3195,9 @@ export class LogicExplainer {
       (c) =>
         (c.flag && c.flag.name.startsWith("Measured")) || (c.flag && c.flag.name === "Trigger"),
     );
-    if (!hasUXFlag) return false;
+    if (!hasUXFlag) {
+      return false;
+    }
 
     let impossibleCount = 0;
     let validAccumulatorTerminators = 0;
@@ -2902,8 +3218,9 @@ export class LogicExplainer {
 
   static isConditionAlwaysFalse(c) {
     // Check RHS existence before accessing properties
-    if (!c.lhs || !c.rhs || c.lhs.type !== ReqType.VALUE || c.rhs.type !== ReqType.VALUE)
+    if (!c.lhs || !c.rhs || c.lhs.type !== ReqType.VALUE || c.rhs.type !== ReqType.VALUE) {
       return false;
+    }
     const left = c.lhs.value;
     const right = c.rhs.value;
 
@@ -2937,13 +3254,6 @@ export class LogicExplainer {
       startIndex++;
     }
 
-    const isMem = (t) =>
-      t === ReqType.MEM ||
-      t === ReqType.DELTA ||
-      t === ReqType.PRIOR ||
-      t === ReqType.BCD ||
-      t === ReqType.INVERT;
-
     for (let i = startIndex; i < group.length; i++) {
       const c = group[i];
       sb += (c.flag ? c.flag.name : "") + "|";
@@ -2951,8 +3261,11 @@ export class LogicExplainer {
       // Safety check for LHS
       if (c.lhs) {
         sb += (c.lhs.type ? c.lhs.type.name : "") + "|" + (c.lhs.size ? c.lhs.size.name : "") + "|";
-        if (c.lhs.type && !isMem(c.lhs.type)) sb += c.lhs.value + "|";
-        else sb += "MEM|";
+        if (c.lhs.type && !isMem(c.lhs.type)) {
+          sb += c.lhs.value + "|";
+        } else {
+          sb += "MEM|";
+        }
       } else {
         sb += "NULL|NULL|NULL|";
       }
@@ -2962,8 +3275,11 @@ export class LogicExplainer {
       // Safety check for RHS (it can be null)
       if (c.rhs) {
         sb += (c.rhs.type ? c.rhs.type.name : "") + "|" + (c.rhs.size ? c.rhs.size.name : "") + "|";
-        if (c.rhs.type && !isMem(c.rhs.type)) sb += c.rhs.value + "|";
-        else sb += "MEM|";
+        if (c.rhs.type && !isMem(c.rhs.type)) {
+          sb += c.rhs.value + "|";
+        } else {
+          sb += "MEM|";
+        }
       } else {
         sb += "NULL|NULL|NULL|";
       }

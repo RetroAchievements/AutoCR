@@ -37,13 +37,13 @@ async function login() {
 app.get("/game/:id", async (req, res) => {
   try {
     const token = await login();
-    const gameid = parseInt(req.params.id, 10);
+    const gameid = Number.parseInt(req.params.id, 10);
     console.log(`[request] game ${gameid}`);
 
     const data = await doRequest({ r: "achievementsets", u: username, t: token, g: gameid });
     res.send(data);
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).send("Error fetching achievements");
   }
 });
@@ -51,13 +51,13 @@ app.get("/game/:id", async (req, res) => {
 app.get("/notes/:id", async (req, res) => {
   try {
     const token = await login();
-    const gameid = parseInt(req.params.id, 10);
+    const gameid = Number.parseInt(req.params.id, 10);
     console.log(`[request] notes ${gameid}`);
 
     const data = await doRequest({ r: "codenotes2", t: token, g: gameid });
     res.send(data.CodeNotes);
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).send("Error fetching code notes");
   }
 });
@@ -65,15 +65,15 @@ app.get("/notes/:id", async (req, res) => {
 app.get("/pack/:id", async (req, res) => {
   try {
     const token = await login();
-    const gameid = parseInt(req.params.id, 10);
+    const gameid = Number.parseInt(req.params.id, 10);
     console.log(`[request] pack ${gameid}`);
 
-    let pack = {};
+    const pack = {};
     pack.game = await doRequest({ r: "achievementsets", u: username, t: token, g: gameid });
     pack.notes = (await doRequest({ r: "codenotes2", t: token, g: gameid })).CodeNotes;
     res.send(pack);
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).send("Error fetching data pack");
   }
 });

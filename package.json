@@ -9,13 +9,18 @@
     "build": "bun build ./index.html --production --sourcemap=linked --outdir=dist",
     "start": "bunx serve dist/ -l 8080",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix"
   },
   "dependencies": {
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
-    "oxfmt": "0.71.0"
+    "@nkzw/eslint-plugin": "2.0.0",
+    "@nkzw/oxlint-config": "2.0.1",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0"
   }
 }

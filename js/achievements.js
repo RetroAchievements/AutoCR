@@ -215,8 +215,12 @@ class Asset {
   }
 
   needsFeedback() {
-    if (this.title.toUpperCase().includes("[VOID]")) return false;
-    if (this.id >= 101000000 && this.id < 111000000) return false; // emulator warnings
+    if (this.title.toUpperCase().includes("[VOID]")) {
+      return false;
+    }
+    if (this.id >= 101_000_000 && this.id < 111_000_000) {
+      return false;
+    } // emulator warnings
     return true;
   }
 
@@ -236,7 +240,7 @@ export class Achievement extends Asset {
     super();
   }
   static fromJSON(json) {
-    let ach = new Achievement();
+    const ach = new Achievement();
     ach.id = json.ID;
     ach.title = json.Title;
     ach.desc = json.Description;
@@ -246,19 +250,21 @@ export class Achievement extends Asset {
     ach.badge = json.BadgeURL;
 
     ach.state = AssetState.CORE;
-    if (json.Flags == 5) ach.state = AssetState.UNOFFICIAL;
+    if (json.Flags === 5) {
+      ach.state = AssetState.UNOFFICIAL;
+    }
 
     try {
       ach.logic = Logic.fromString(json.MemAddr, false);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       return null;
     }
     return ach;
   }
 
   static fromLocal(row) {
-    let ach = new Achievement();
+    const ach = new Achievement();
     ach.id = +row[0];
     ach.title = row[2];
     ach.desc = row[3];
@@ -266,14 +272,16 @@ export class Achievement extends Asset {
     ach.author = row[7];
     ach.achtype = row[6];
 
-    if (!row[13] || row[13].startsWith("local\\")) row[13] = "00000";
+    if (!row[13] || row[13].startsWith("local\\")) {
+      row[13] = "00000";
+    }
     ach.badge = `https://media.retroachievements.org/Badge/${row[13]}.png`;
 
     ach.state = AssetState.LOCAL;
     try {
       ach.logic = Logic.fromString(row[1], false);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       return null;
     }
     return ach;
@@ -292,7 +300,7 @@ export class Leaderboard extends Asset {
     super();
   }
   static fromJSON(json) {
-    let lb = new Leaderboard();
+    const lb = new Leaderboard();
     lb.id = json.ID;
     lb.title = json.Title;
     lb.desc = json.Description;
@@ -301,13 +309,13 @@ export class Leaderboard extends Asset {
 
     lb.components = {};
     try {
-      for (let part of json.Mem.split("::")) {
-        let tag = part.substring(0, 3);
-        let mem = part.substring(4);
-        lb.components[tag] = Logic.fromString(mem, tag == "VAL");
+      for (const part of json.Mem.split("::")) {
+        const tag = part.slice(0, 3);
+        const mem = part.slice(4);
+        lb.components[tag] = Logic.fromString(mem, tag === "VAL");
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       return null;
     }
 
@@ -316,12 +324,12 @@ export class Leaderboard extends Asset {
   }
 
   static fromLocal(row) {
-    let lb = new Leaderboard();
-    lb.id = +row[0].substring(1);
+    const lb = new Leaderboard();
+    lb.id = +row[0].slice(1);
     lb.title = row[6];
     lb.desc = row[7];
     lb.format = FormatTypeMap[row[5]];
-    lb.lower_is_better = row[8] == "1";
+    lb.lower_is_better = row[8] === "1";
 
     try {
       lb.components = {
@@ -330,8 +338,8 @@ export class Leaderboard extends Asset {
         SUB: Logic.fromString(row[3], false),
         VAL: Logic.fromString(row[4], true),
       };
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       return null;
     }
 
@@ -347,10 +355,45 @@ export class Leaderboard extends Asset {
   }
 
   getType() {
-    if (this.#usesFastWords()) return "speedrun";
-    if (this.format.category == "time") return this.lower_is_better ? "speedrun" : "survival";
+    if (this.#usesFastWords()) {
+      return "speedrun";
+    }
+    if (this.format.category === "time") {
+      return this.lower_is_better ? "speedrun" : "survival";
+    }
     return this.lower_is_better ? "min score" : "high score";
   }
+}
+
+function parseColons(line) {
+  const res = [];
+  let start = 0,
+    inquotes = false;
+
+  const chars = Array.from(line + ":");
+  for (const entry of chars.entries()) {
+    let ci = entry[0];
+    const ch = entry[1];
+    if (start > ci) {
+      continue;
+    } else if (start === ci && !inquotes && ch === '"') {
+      inquotes = true;
+      continue;
+    } else if ((inquotes && ch === '"' && line[ci - 1] !== "\\") || (!inquotes && ch === ":")) {
+      if (inquotes) {
+        ci += 1;
+      }
+      let x = chars.slice(start, ci).join("");
+      if (inquotes) {
+        x = JSON.parse(x);
+      }
+
+      res.push(x);
+      start = ci + 1;
+      inquotes = false;
+    }
+  }
+  return res;
 }
 
 export class AchievementSet {
@@ -367,29 +410,38 @@ export class AchievementSet {
     this.title = json.Title;
     this.icon = json.ImageIconUrl || json.ImageIconURL;
 
-    let cid = json.ConsoleId || json.ConsoleID;
+    const cid = json.ConsoleId || json.ConsoleID;
     this.console = cid in ConsoleMap ? ConsoleMap[cid] : null;
 
-    let achJson = [],
+    const achJson = [],
       ldbJson = [];
-    if ("Achievements" in json) achJson.push(...json.Achievements);
-    if ("Leaderboards" in json) ldbJson.push(...json.Leaderboards);
-    if ("Sets" in json)
-      for (let set of json.Sets) {
+    if ("Achievements" in json) {
+      achJson.push(...json.Achievements);
+    }
+    if ("Leaderboards" in json) {
+      ldbJson.push(...json.Leaderboards);
+    }
+    if ("Sets" in json) {
+      for (const set of json.Sets) {
         achJson.push(...set.Achievements);
         ldbJson.push(...set.Leaderboards);
       }
+    }
 
     for (const [i, x] of achJson.entries()) {
-      let asset = Achievement.fromJSON(x);
-      if (!asset || !asset.needsFeedback()) continue;
+      const asset = Achievement.fromJSON(x);
+      if (!asset || !asset.needsFeedback()) {
+        continue;
+      }
       asset.index = i; // to preserve order from json file
       this.achievements.set(asset.id || asset.index, asset);
     }
 
-    for (let [i, x] of ldbJson.entries()) {
-      let asset = Leaderboard.fromJSON(x);
-      if (x.Hidden || !asset || !asset.needsFeedback()) continue;
+    for (const [i, x] of ldbJson.entries()) {
+      const asset = Leaderboard.fromJSON(x);
+      if (x.Hidden || !asset || !asset.needsFeedback()) {
+        continue;
+      }
       asset.index = i; // to preserve order from json file
       this.leaderboards.set(asset.id || asset.index, asset);
     }
@@ -398,30 +450,6 @@ export class AchievementSet {
   }
 
   addLocal(txt, notes) {
-    function parseColons(line) {
-      let res = [];
-      let start = 0,
-        inquotes = false;
-
-      let chars = Array.from(line + ":");
-      for (let [ci, ch] of chars.entries()) {
-        if (start > ci) continue;
-        else if (start == ci && !inquotes && ch == '"') {
-          inquotes = true;
-          continue;
-        } else if ((inquotes && ch == '"' && line[ci - 1] != "\\") || (!inquotes && ch == ":")) {
-          if (inquotes) ci += 1;
-          let x = chars.slice(start, ci).join("");
-          if (inquotes) x = JSON.parse(x);
-
-          res.push(x);
-          start = ci + 1;
-          inquotes = false;
-        }
-      }
-      return res;
-    }
-
     const lines = txt.match(/[^\r\n]+/g);
     this.title = lines[1];
     for (let i = 2; i < lines.length; i++) {
@@ -435,14 +463,18 @@ export class AchievementSet {
           break;
         case "L": // leaderboard
           asset = Leaderboard.fromLocal(row);
-          asset.index = i + 1000000; // preserve order from file
-          if (!asset || !asset.needsFeedback()) continue;
+          asset.index = i + 1_000_000; // preserve order from file
+          if (!asset || !asset.needsFeedback()) {
+            continue;
+          }
           this.leaderboards.set(asset.id || asset.index, asset);
           break;
         default: // achievement
           asset = Achievement.fromLocal(row);
-          asset.index = i + 1000000; // preserve order from file
-          if (!asset || !asset.needsFeedback()) continue;
+          asset.index = i + 1_000_000; // preserve order from file
+          if (!asset || !asset.needsFeedback()) {
+            continue;
+          }
           this.achievements.set(asset.id || asset.index, asset);
           break;
       }
@@ -472,7 +504,9 @@ class NoteNode {
   constructor() {}
 
   toString() {
-    if (!this.description || this.description.trim() === "") return this.offset;
+    if (!this.description || this.description.trim() === "") {
+      return this.offset;
+    }
     return `${this.offset} | ${this.description}`;
   }
 }
@@ -483,7 +517,9 @@ class PointerTreeParser {
   // Main entry point: Converts a multiline string into a flat list of nodes
   // preserving hierarchy via Parent/Children references.
   static parseNoteText(noteText) {
-    if (!noteText) return [];
+    if (!noteText) {
+      return [];
+    }
 
     const lines = noteText.split(/\r\n|\r|\n/);
     const flatList = [];
@@ -495,7 +531,9 @@ class PointerTreeParser {
     root.indentLevel = -2;
     root.content = noteText;
 
-    if (lines.length > 0) root.size = PointerTreeParser.parseSizeFromDescription(lines[0]);
+    if (lines.length > 0) {
+      root.size = PointerTreeParser.parseSizeFromDescription(lines[0]);
+    }
 
     flatList.push(root);
 
@@ -512,15 +550,17 @@ class PointerTreeParser {
     // Group 3: Hex value (0x...).
     // Group 4: Separator (|, =, :).
     // Group 5: Description/Remainder.
-    const offsetRegex = /^([.\+\s\u2500-\u257F]*)([-+]?)(0x[0-9A-Fa-f]+)\s*([|=:])?\s*(.*)$/;
+    const offsetRegex = /^([.+\s\u2500-\u257F]*)([-+]?)(0x[0-9A-Fa-f]+)\s*([|=:])?\s*(.*)$/;
 
     // Helper regex to strip structural characters from description/enum lines.
-    const prefixStripRegex = /^([.\+\s\u2500-\u257F]+)/;
+    const prefixStripRegex = /^([.+\s\u2500-\u257F]+)/;
 
     for (let i = 0; i < lines.length; i++) {
       // trimEnd instead of trim ensures leading spaces/visual depth are preserved for the regex
       const line = lines[i].trimEnd();
-      if (!line) continue;
+      if (!line) {
+        continue;
+      }
 
       const match = line.match(offsetRegex);
       let isNode = false;
@@ -548,7 +588,7 @@ class PointerTreeParser {
       if (isNode) {
         const indentStr = match[1];
         // Natural depth tracking: visual prefix length dictates the hierarchy level
-        let indent = indentStr.length;
+        const indent = indentStr.length;
 
         const sign = match[2];
         const hex = match[3];
@@ -559,13 +599,15 @@ class PointerTreeParser {
           desc.length > 0 &&
           (desc[0] === "-" || desc[0] === ":" || desc[0] === "=" || /\s/.test(desc[0]))
         ) {
-          desc = desc.substring(1);
+          desc = desc.slice(1);
         }
         desc = desc.trim();
 
         // Normalization
         let offset = sign + hex;
-        if (!offset.startsWith("+") && !offset.startsWith("-")) offset = "+" + offset;
+        if (!offset.startsWith("+") && !offset.startsWith("-")) {
+          offset = "+" + offset;
+        }
 
         const size = PointerTreeParser.parseSizeFromDescription(desc);
 
@@ -577,13 +619,15 @@ class PointerTreeParser {
         node.size = size;
 
         // Tree Construction
-        while (stack.length > 0 && stack[stack.length - 1].indentLevel >= indent) {
+        while (stack.length > 0 && stack.at(-1).indentLevel >= indent) {
           stack.pop();
         }
 
-        if (stack.length === 0) stack.push(logicalRoot);
+        if (stack.length === 0) {
+          stack.push(logicalRoot);
+        }
 
-        const parent = stack[stack.length - 1];
+        const parent = stack.at(-1);
         node.parent = parent;
         parent.children.push(node);
 
@@ -592,7 +636,9 @@ class PointerTreeParser {
       } else {
         // Append to content of most recent node
         if (lastAddedNode) {
-          if (lastAddedNode.content.length > 0) lastAddedNode.content += "\n";
+          if (lastAddedNode.content.length > 0) {
+            lastAddedNode.content += "\n";
+          }
           // Remove structural prefixes (like │ ) from description content to keep tooltips clean
           const cleanContentLine = line.replace(prefixStripRegex, "").trimStart();
           lastAddedNode.content += cleanContentLine;
@@ -611,26 +657,40 @@ class PointerTreeParser {
   }
 
   static parseSizeFromDescription(desc) {
-    if (!desc) return 1;
+    if (!desc) {
+      return 1;
+    }
 
     // 1. Check for explicit byte count
     const bytesMatch = desc.match(/\[.*?(\d+)\s*[-]?\s*bytes?.*?\]/i);
     if (bytesMatch && bytesMatch[1]) {
-      const bSize = parseInt(bytesMatch[1], 10);
-      if (!isNaN(bSize)) return bSize;
+      const bSize = Number.parseInt(bytesMatch[1], 10);
+      if (!Number.isNaN(bSize)) {
+        return bSize;
+      }
     }
 
     // 2. Check for standard type tags
-    if (desc.includes("[32-bit") || desc.includes("[Float")) return 4;
-    if (desc.includes("[24-bit")) return 3;
-    if (desc.includes("[16-bit")) return 2;
-    if (desc.includes("[8-bit")) return 1;
+    if (desc.includes("[32-bit") || desc.includes("[Float")) {
+      return 4;
+    }
+    if (desc.includes("[24-bit")) {
+      return 3;
+    }
+    if (desc.includes("[16-bit")) {
+      return 2;
+    }
+    if (desc.includes("[8-bit")) {
+      return 1;
+    }
 
     return 1;
   }
 
   static collectAllNodes(node, flatList) {
-    if (node.indentLevel !== -1) flatList.push(node);
+    if (node.indentLevel !== -1) {
+      flatList.push(node);
+    }
     for (const child of node.children) {
       PointerTreeParser.collectAllNodes(child, flatList);
     }
@@ -655,7 +715,9 @@ export class CodeNote {
     this.author = author;
 
     [this.type, this.size] = CodeNote.getSize(note);
-    if (!this.isProbablePointer()) this.enum = CodeNote.parseEnumerations(note);
+    if (!this.isProbablePointer()) {
+      this.enum = CodeNote.parseEnumerations(note);
+    }
 
     // Parse the note into a structure tree for the explainer
     this.noteNodes = PointerTreeParser.parseNoteText(note);
@@ -678,9 +740,12 @@ export class CodeNote {
 
   isProbablePointer() {
     const lines = this.note.toLowerCase().split("\n");
-    if (["ptr", "pointer"].some((x) => lines[0].includes(x))) return true;
-    if (lines.filter((x, i) => i > 0 && /^[.\+\s\u2500-\u257F]*\+/.test(x)).length >= 2)
+    if (["ptr", "pointer"].some((x) => lines[0].includes(x))) {
       return true;
+    }
+    if (lines.filter((x, i) => i > 0 && /^[.+\s\u2500-\u257F]*\+/.test(x)).length >= 2) {
+      return true;
+    }
     return false;
   }
 
@@ -689,7 +754,9 @@ export class CodeNote {
     let memSize = null;
 
     const sNote = note.split("\n", 1)[0].toLowerCase();
-    if (sNote.length < 4) return [null, 1];
+    if (sNote.length < 4) {
+      return [null, 1];
+    }
 
     let bytesFromBits = false;
     let foundSize = false;
@@ -698,42 +765,42 @@ export class CodeNote {
 
     let prevWord = "";
     for (const m of sNote.matchAll(/((\d+)|([a-z]+)|.)/gi)) {
-      let word = m[1];
-      let wordIsNumber = m[1] == m[2];
+      const word = m[1];
+      const wordIsNumber = m[1] === m[2];
       let wordIsSize = false;
 
       if (wordIsNumber) {
-        let num = +word;
-        if (prevWord == "mbf") {
-          if (num == 32 || num == 40) {
+        const num = +word;
+        if (prevWord === "mbf") {
+          if (num === 32 || num === 40) {
             bytes = num / 8;
             memSize = MemSize.MBF32;
             wordIsSize = true;
             foundSize = true;
           }
-        } else if (prevWord == "double" && num == 32) {
+        } else if (prevWord === "double" && num === 32) {
           bytes = num / 8;
           memSize = MemSize.DBL32;
           wordIsSize = true;
           foundSize = true;
-        } else if (num == 4 && ["lower", "upper"].includes(prevWord)) {
+        } else if (num === 4 && ["lower", "upper"].includes(prevWord)) {
           bytes = 1;
           memSize = MemSize.BYTE;
           wordIsSize = true;
           foundSize = true;
         }
       } else if (prevWordIsSize) {
-        if (word == "float") {
-          if (memSize == MemSize.DWORD) {
+        if (word === "float") {
+          if (memSize === MemSize.DWORD) {
             memSize = MemSize.FLOAT;
             wordIsSize = true;
           }
-        } else if (word == "double") {
-          if (memSize == MemSize.DWORD || bytes == 8) {
+        } else if (word === "double") {
+          if (memSize === MemSize.DWORD || bytes === 8) {
             memSize = MemSize.DBL32;
             wordIsSize = true;
           }
-        } else if (word == "be" || word == "bigendian") {
+        } else if (word === "be" || word === "bigendian") {
           switch (memSize) {
             case MemSize.WORD:
               memSize = MemSize.WORD_BE;
@@ -753,14 +820,18 @@ export class CodeNote {
             default:
               break;
           }
-        } else if (word == "le") {
-          if (memSize == MemSize.MBF32) memSize = MemSize.MBF32_LE;
-        } else if (word == "mbf") {
-          if (bytes == 4 || bytes == 5) memSize = MemSize.MBF32;
+        } else if (word === "le") {
+          if (memSize === MemSize.MBF32) {
+            memSize = MemSize.MBF32_LE;
+          }
+        } else if (word === "mbf") {
+          if (bytes === 4 || bytes === 5) {
+            memSize = MemSize.MBF32;
+          }
         }
       } else if (prevWordIsNumber) {
-        let num = +prevWord;
-        if (word == "bit" || word == "bits") {
+        const num = +prevWord;
+        if (word === "bit" || word === "bits") {
           if (!foundSize) {
             bytes = Math.floor((num + 7) / 8);
             memSize = null;
@@ -768,7 +839,7 @@ export class CodeNote {
             wordIsSize = true;
             foundSize = true;
           }
-        } else if (word == "byte" || word == "bytes") {
+        } else if (word === "byte" || word === "bytes") {
           if (!foundSize || bytesFromBits) {
             bytes = num;
             memSize = null;
@@ -800,21 +871,25 @@ export class CodeNote {
               break;
           }
         }
-      } else if (word == "float") {
+      } else if (word === "float") {
         if (!foundSize) {
           bytes = 4;
           memSize = MemSize.FLOAT;
           wordIsSize = true;
 
-          if (prevWord == "be" || prevWord == "bigendian") memSize = MemSize.FLOAT_BE;
+          if (prevWord === "be" || prevWord === "bigendian") {
+            memSize = MemSize.FLOAT_BE;
+          }
         }
-      } else if (word == "double") {
+      } else if (word === "double") {
         if (!foundSize) {
           bytes = 8;
           memSize = MemSize.DBL32;
           wordIsSize = true;
 
-          if (prevWord == "be" || prevWord == "bigendian") memSize = MemSize.DBL32_BE;
+          if (prevWord === "be" || prevWord === "bigendian") {
+            memSize = MemSize.DBL32_BE;
+          }
         }
       } else if (word.startsWith("bitflag") || word.startsWith("bitfield")) {
         if (!foundSize) {
@@ -823,7 +898,7 @@ export class CodeNote {
         }
       }
 
-      if (word != " " && word != "-") {
+      if (word !== " " && word !== "-") {
         prevWordIsSize = wordIsSize;
         prevWordIsNumber = wordIsNumber;
         prevWord = word;
@@ -840,30 +915,32 @@ export class CodeNote {
     // Group 2: The delimiter (accepts =, :, |, or -)
     // Group 3: The label (everything after the delimiter)
     const ENUM_LINE_RE =
-      /^[.\+\s\u2500-\u257F]*((?:(?:0x)?[0-9a-f]+|[-+]?[0-9]*\.?[0-9]+)+)\s*([:=|\-])\s*(.+)$/i;
+      /^[.+\s\u2500-\u257F]*((?:(?:0x)?[0-9a-f]+|[-+]?[0-9]*\.?[0-9]+)+)\s*([:=|-])\s*(.+)$/i;
 
     const lines = note.split("\n");
-    let enumerations = [];
+    const enumerations = [];
     let isHex = false;
 
     for (let i = 1; i < lines.length; i++) {
       const match = lines[i].match(ENUM_LINE_RE);
-      if (!match) continue;
+      if (!match) {
+        continue;
+      }
 
       const literal = match[1];
       const meaning = match[3].trim();
 
       let value;
       if (literal.toLowerCase().startsWith("0x")) {
-        value = parseInt(literal, 16);
+        value = Number.parseInt(literal, 16);
         isHex = true;
       } else if (literal.includes(".")) {
-        value = parseFloat(literal);
+        value = Number.parseFloat(literal);
       } else {
-        value = parseInt(literal, isHex ? 16 : 10);
+        value = Number.parseInt(literal, isHex ? 16 : 10);
       }
 
-      if (!isNaN(value)) {
+      if (!Number.isNaN(value)) {
         enumerations.push({ literal, value, meaning });
       }
     }
@@ -872,24 +949,45 @@ export class CodeNote {
   }
 }
 
+// Helper to parse offset string like "+0x10" or "-0x4" -> integer
+const parseOff = (s) => {
+  let clean = s.replaceAll(/[+\-\s]/g, "");
+  if (clean.toLowerCase().startsWith("0x")) {
+    clean = clean.slice(2);
+  }
+  let v = Number.parseInt(clean, 16);
+  if (s.includes("-")) {
+    v = -v;
+  }
+  return Number.isNaN(v) ? 0 : v;
+};
+
 export class CodeNoteSet extends Array {
   clear() {
     this.length = 0;
   }
 
   add(note) {
-    for (let i = 0; i < this.length; i++) if (this[i].addr == note.addr) return (this[i] = note);
+    for (let i = 0; i < this.length; i++) {
+      if (this[i].addr === note.addr) {
+        return (this[i] = note);
+      }
+    }
 
     this.push(note);
     for (let i = this.length - 1; i > 0 && this[i].addr < this[i - 1].addr; i--) {
-      let t = this[i];
+      const t = this[i];
       this[i] = this[i - 1];
       this[i - 1] = t;
     }
   }
 
   get(addr) {
-    for (let i = this.length - 1; i >= 0; i--) if (this[i].contains(addr)) return this[i];
+    for (let i = this.length - 1; i >= 0; i--) {
+      if (this[i].contains(addr)) {
+        return this[i];
+      }
+    }
     return null;
   }
 
@@ -907,7 +1005,9 @@ export class CodeNoteSet extends Array {
     } else {
       // Direct Lookup
       const note = this.get(addr);
-      if (note) return note.note;
+      if (note) {
+        return note.note;
+      }
       return null;
     }
 
@@ -921,7 +1021,7 @@ export class CodeNoteSet extends Array {
     while (note && redirects < 5) {
       const match = note.note.match(/refer to \$0x([0-9a-fA-F]+)/i);
       if (match) {
-        const target = parseInt(match[1], 16);
+        const target = Number.parseInt(match[1], 16);
         const targetNote = this.get(target);
         if (targetNote) {
           note = targetNote;
@@ -939,15 +1039,6 @@ export class CodeNoteSet extends Array {
       let currentNodes = note.noteNodes.filter((n) => n.parent && n.parent.indentLevel === -1);
 
       if (currentNodes && currentNodes.length > 0) {
-        // Helper to parse offset string like "+0x10" or "-0x4" -> integer
-        const parseOff = (s) => {
-          let clean = s.replace(/[+\-\s]/g, "");
-          if (clean.toLowerCase().startsWith("0x")) clean = clean.substring(2);
-          let v = parseInt(clean, 16);
-          if (s.includes("-")) v = -v;
-          return isNaN(v) ? 0 : v;
-        };
-
         // Iterate through offsets (Intermediates -> Leaf)
         for (let i = 0; i < offsets.length; i++) {
           const offVal = offsets[i];
@@ -985,7 +1076,9 @@ export class CodeNoteSet extends Array {
     if (foundNode) {
       let desc = foundNode.description || "";
       if (foundNode.content) {
-        if (desc.length > 0) desc += "\n";
+        if (desc.length > 0) {
+          desc += "\n";
+        }
         desc += foundNode.content;
       }
       return header + desc;
@@ -1004,18 +1097,23 @@ export class CodeNoteSet extends Array {
 }
 
 // https://github.com/RetroAchievements/RAIntegration/blob/8a26afb6adb27e22c737a6006344abce8f24c21f/tests/data/models/CodeNoteModel_Tests.cpp#L53
+// oxlint-disable-next-line no-unused-vars
 function testCodeNotes() {
   let count = 0,
     fails = 0;
   function _testNote(note, size, type) {
-    let cn = new CodeNote(0x0, note);
-    let res = cn.size == size && cn.type == type ? "PASS" : "FAIL";
+    const cn = new CodeNote(0x0, note);
+    const res = cn.size === size && cn.type === type ? "PASS" : "FAIL";
 
+    // oxlint-disable-next-line no-console
     console.log(note, "-->", size, type);
+    // oxlint-disable-next-line no-console
     console.log(res, cn);
 
     count += 1;
-    if (!(cn.size == size && cn.type == type)) fails += 1;
+    if (!(cn.size === size && cn.type === type)) {
+      fails += 1;
+    }
   }
 
   _testNote("", 1, null);
@@ -1119,6 +1217,7 @@ function testCodeNotes() {
   _testNote("lower 4-byte value", 1, MemSize.BYTE);
   _testNote("lower (4-byte) value", 4, MemSize.DWORD);
 
+  // oxlint-disable-next-line no-console
   console.log(fails + "/" + count + " failed");
 }
 
@@ -1158,7 +1257,9 @@ class RichPresenceDisplayPart {
     if (isMacro && parameter) {
       try {
         this.logic = Logic.fromString(parameter, true);
-      } catch (e) {}
+      } catch {
+        // Ignore parse errors; this.logic keeps its default value
+      }
     }
   }
 }
@@ -1179,25 +1280,25 @@ class RichPresenceDisplayString {
 
 class RichPresenceParser {
   static tryParseUInt(input) {
-    let clean = input.trim();
+    const clean = input.trim();
     if (clean.toLowerCase().startsWith("0x")) {
-      let val = parseInt(clean.substring(2), 16);
-      return isNaN(val) ? null : val;
+      const val = Number.parseInt(clean.slice(2), 16);
+      return Number.isNaN(val) ? null : val;
     }
-    let val = parseInt(clean, 10);
-    return isNaN(val) ? null : val;
+    const val = Number.parseInt(clean, 10);
+    return Number.isNaN(val) ? null : val;
   }
 
   static parseKeyString(keyString) {
-    let rangeParts = keyString.split("-");
+    const rangeParts = keyString.split("-");
     if (rangeParts.length === 2) {
-      let start = this.tryParseUInt(rangeParts[0]);
-      let end = this.tryParseUInt(rangeParts[1]);
+      const start = this.tryParseUInt(rangeParts[0]);
+      const end = this.tryParseUInt(rangeParts[1]);
       if (start !== null && end !== null && start <= end) {
         return { start, end, valid: true };
       }
     } else {
-      let key = this.tryParseUInt(keyString);
+      const key = this.tryParseUInt(keyString);
       if (key !== null) {
         return { start: key, end: null, valid: true };
       }
@@ -1251,28 +1352,30 @@ export class RichPresence {
   constructor() {}
 
   static fromText(txt) {
-    let rp = new RichPresence();
+    const rp = new RichPresence();
     rp.text = txt;
 
-    let lines = txt.split(/\r\n|\n|\r/);
+    const lines = txt.split(/\r\n|\n|\r/);
     let currentSection = null;
     let currentLookup = null;
     let currentComment = null;
 
-    for (let line of lines) {
+    for (const line of lines) {
       let trimmed = line.trimStart();
 
       if (trimmed.includes("//")) {
-        let commentIndex = trimmed.indexOf("//");
-        currentComment = trimmed.substring(commentIndex + 2).trim();
-        trimmed = trimmed.substring(0, commentIndex).trim();
+        const commentIndex = trimmed.indexOf("//");
+        currentComment = trimmed.slice(commentIndex + 2).trim();
+        trimmed = trimmed.slice(0, commentIndex).trim();
       }
 
-      if (!trimmed) continue;
+      if (!trimmed) {
+        continue;
+      }
 
       if (trimmed.startsWith("Lookup:")) {
         currentSection = "Lookup";
-        let name = trimmed.substring(7).trim();
+        const name = trimmed.slice(7).trim();
         currentLookup = new RichPresenceLookup(name);
         rp.scriptLookups.push(currentLookup);
         currentComment = null;
@@ -1280,7 +1383,7 @@ export class RichPresence {
       }
       if (trimmed.startsWith("Format:")) {
         currentSection = "Format";
-        let name = trimmed.substring(7).trim();
+        const name = trimmed.slice(7).trim();
         currentLookup = rp.scriptLookups.find((l) => l.name.toLowerCase() === name.toLowerCase());
         if (!currentLookup) {
           currentLookup = new RichPresenceLookup(name);
@@ -1297,18 +1400,18 @@ export class RichPresence {
       }
 
       if (currentSection === "Lookup" && currentLookup) {
-        let parts = trimmed.split("=");
+        const parts = trimmed.split("=");
         if (parts.length >= 2) {
           // Join back in case value had an '='
-          let valStr = parts.slice(1).join("=");
+          const valStr = parts.slice(1).join("=");
           if (parts[0].trim() === "*") {
             currentLookup.defaultVal = valStr;
           } else {
             // Handle comma-separated keys (e.g. 0x1,0x2=Value)
-            let keys = parts[0].split(",");
-            for (let rawKey of keys) {
-              let keyString = rawKey.trim();
-              let parsed = RichPresenceParser.parseKeyString(keyString);
+            const keys = parts[0].split(",");
+            for (const rawKey of keys) {
+              const keyString = rawKey.trim();
+              const parsed = RichPresenceParser.parseKeyString(keyString);
               if (parsed.valid) {
                 currentLookup.entries.push(
                   new LookupEntry(keyString, valStr, currentComment, parsed.start, parsed.end),
@@ -1319,19 +1422,21 @@ export class RichPresence {
         }
       } else if (currentSection === "Format" && currentLookup) {
         if (trimmed.startsWith("FormatType=")) {
-          currentLookup.format = trimmed.substring(11).trim();
+          currentLookup.format = trimmed.slice(11).trim();
         }
       } else if (currentSection === "Display") {
-        let ds = new RichPresenceDisplayString();
+        const ds = new RichPresenceDisplayString();
         let displayContent = trimmed;
 
         if (trimmed.startsWith("?")) {
-          let qParts = trimmed.split("?");
+          const qParts = trimmed.split("?");
           if (qParts.length >= 3) {
             ds.conditionStr = qParts[1];
             try {
               ds.condition = Logic.fromString(qParts[1], false);
-            } catch (e) {}
+            } catch {
+              // Ignore parse errors; ds.condition keeps its default value
+            }
             displayContent = qParts.slice(2).join("?"); // Everything after 2nd '?'
           } else {
             ds.conditionStr = qParts[1];
@@ -1342,14 +1447,14 @@ export class RichPresence {
         }
 
         // Extract Macros and Static text parts
-        let regex = /(@([^()]+)\(([^)]*)\))/g;
+        const regex = /(@([^()]+)\(([^)]*)\))/g;
         let lastIndex = 0;
         let match;
 
         while ((match = regex.exec(displayContent)) !== null) {
           if (match.index > lastIndex) {
             ds.parts.push(
-              new RichPresenceDisplayPart(false, displayContent.substring(lastIndex, match.index)),
+              new RichPresenceDisplayPart(false, displayContent.slice(lastIndex, match.index)),
             );
           }
           ds.parts.push(new RichPresenceDisplayPart(true, match[2], match[3]));
@@ -1357,7 +1462,7 @@ export class RichPresence {
         }
 
         if (lastIndex < displayContent.length) {
-          ds.parts.push(new RichPresenceDisplayPart(false, displayContent.substring(lastIndex)));
+          ds.parts.push(new RichPresenceDisplayPart(false, displayContent.slice(lastIndex)));
         }
 
         rp.displayStrings.push(ds);
@@ -1376,7 +1481,7 @@ export class RichPresence {
     rp.scriptLookups
       .filter((l) => l.entries.length > 0 || l.defaultVal !== null)
       .forEach((l) => {
-        let ranges = [];
+        const ranges = [];
         if (l.defaultVal !== null) {
           ranges.push(new LookupRange(null, null, l.defaultVal));
         }
@@ -1397,7 +1502,9 @@ export class RichPresence {
             let calcLogic = null;
             try {
               calcLogic = Logic.fromString(p.parameter, true);
-            } catch (e) {}
+            } catch {
+              // Ignore parse errors; calcLogic keeps its default value
+            }
             return { name: p.text, calc: calcLogic };
           })
           .filter((x) => x.calc !== null),

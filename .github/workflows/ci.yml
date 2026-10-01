@@ -27,3 +27,6 @@ jobs:
 
       - name: oxfmt
         run: bun run format:check
+
+      - name: oxlint
+        run: bun run lint

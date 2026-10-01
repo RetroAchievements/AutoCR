@@ -9,9 +9,15 @@ import {
   ConditionFormatter,
   PartialAccess,
   MemSize,
+  Logic,
+  Requirement,
 } from "./logic";
 import { Leaderboard, AssetState, RichPresence } from "./achievements";
 import { current, get_game_title } from "./state";
+
+function tc(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 function make_title_case(phrase) {
   const TITLE_CASE_MINORS = new Set([
@@ -61,21 +67,27 @@ function make_title_case(phrase) {
   function tc_minor(word) {
     return TITLE_CASE_MINORS.has(word);
   }
-  function tc(s) {
-    return s.charAt(0).toUpperCase() + s.substring(1);
-  }
   const lastws = phrase.matchAll(/\s/g).toArray()?.pop()?.index;
-  return phrase.replace(/[0-9'\u2018\u2019\p{Script=Latin}]+/gu, function (x, i) {
+  return phrase.replaceAll(/[0-9'\u2018\u2019\p{Script=Latin}]+/gu, (x, i) => {
     // if the word is presented in allcaps, assume it is done so intentionally
-    if (x == x.toUpperCase()) return x;
+    if (x === x.toUpperCase()) {
+      return x;
+    }
     // first and last word of a phrase should be capitalized
-    if (i == 0 || lastws + 1 == i) return tc(x);
+    if (i === 0 || lastws + 1 === i) {
+      return tc(x);
+    }
     // if this is part of a hyphenated word, don't change it
-    if (phrase[i - 1] == "-") return x;
+    if (phrase[i - 1] === "-") {
+      return x;
+    }
     // first word of a new sentence should be capitalized again
     for (let j = i - 1; j >= 0; j--) {
-      if (".!?:;-".includes(phrase[j])) return tc(x);
-      else if (!phrase[j].match(/[\s"]/)) break;
+      if (".!?:;-".includes(phrase[j])) {
+        return tc(x);
+      } else if (!phrase[j].match(/[\s"]/)) {
+        break;
+      }
     }
     // otherwise, just base it off of the minors rule
     return tc_minor(x.toLowerCase()) ? x.toLowerCase() : tc(x);
@@ -617,8 +629,12 @@ class IssueGroup extends Array {
   }
 
   static fromTests(label, tests, param) {
-    let res = new IssueGroup(label);
-    for (const test of tests) for (const issue of test(param)) res.add(issue);
+    const res = new IssueGroup(label);
+    for (const test of tests) {
+      for (const issue of test(param)) {
+        res.add(issue);
+      }
+    }
     return res;
   }
 }
@@ -639,47 +655,56 @@ class Assessment {
   }
 }
 
+// oxlint-disable-next-line no-unused-vars
 function* missing_notes(logic) {
-  for (const [gi, g] of logic.groups.entries()) {
+  for (const g of logic.groups) {
     let prev_addaddress = false;
-    for (const [ri, req] of g.entries()) {
+    for (const req of g) {
       let lastreport = null;
       for (const operand of [req.lhs, req.rhs]) {
-        if (!operand || !operand.type || !operand.type.addr) continue;
+        if (!operand || !operand.type || !operand.type.addr) {
+          continue;
+        }
         if (!prev_addaddress && !current.notes.get(operand.value)) {
-          if (lastreport == operand.value) continue;
-          yield { addr: operand.value, req: req };
+          if (lastreport === operand.value) {
+            continue;
+          }
+          yield { addr: operand.value, req };
           lastreport = operand.value;
         }
       }
-      prev_addaddress = req.flag == ReqFlag.ADDADDRESS;
+      prev_addaddress = req.flag === ReqFlag.ADDADDRESS;
     }
   }
 }
 
-function invert_chain(group, ri) {
-  function invert_req(req) {
-    let copy = req.clone();
-    if (copy.flag == ReqFlag.ANDNEXT) copy.flag = ReqFlag.ORNEXT;
-    else if (copy.flag == ReqFlag.ORNEXT) copy.flag = ReqFlag.ANDNEXT;
-    copy.reverseComparison();
-    return copy;
+function invert_req(req) {
+  const copy = req.clone();
+  if (copy.flag === ReqFlag.ANDNEXT) {
+    copy.flag = ReqFlag.ORNEXT;
+  } else if (copy.flag === ReqFlag.ORNEXT) {
+    copy.flag = ReqFlag.ANDNEXT;
   }
-
-  let target = invert_req(group[ri]);
+  copy.reverseComparison();
+  return copy;
+}
+function invert_chain(group, ri) {
+  const target = invert_req(group[ri]);
   target.flag = null;
   target.hits = 0;
 
   let res = target.toMarkdown();
   for (let i = ri - 1; i >= 0; i--) {
-    if (group[i].isTerminating()) break;
+    if (group[i].isTerminating()) {
+      break;
+    }
     res = invert_req(group[i]).toMarkdown() + "\n" + res;
   }
   return res;
 }
 
 function generate_logic_stats(logic) {
-  let stats = {};
+  const stats = {};
   stats.mem_length = -1;
 
   // flattened version of the logic
@@ -706,10 +731,10 @@ function generate_logic_stats(logic) {
   stats.unique_sizes_all = new Set(logic.getMemSizes());
 
   // list of all chained requirements
-  let chains = [];
-  for (const [gi, g] of logic.groups.entries()) {
+  const chains = [];
+  for (const g of logic.groups) {
     let curr_chain = [];
-    for (const [ri, req] of g.entries()) {
+    for (const req of g) {
       curr_chain.push(req);
       if (!req.flag || !req.flag.chain) {
         chains.push(curr_chain);
@@ -723,20 +748,20 @@ function generate_logic_stats(logic) {
 
   // count of requirements with hit counts
   stats.hit_targets = flat.filter((x) => x.hits > 0).length;
-  stats.checkpoint_hits = flat.filter((x) => !PAUSERESET.has(x.flag) && x.hits == 1).length;
+  stats.checkpoint_hits = flat.filter((x) => !PAUSERESET.has(x.flag) && x.hits === 1).length;
   stats.hit_target_many = flat.filter((x) => x.hits > 1).length;
 
   // count of requirements with PauseIf
-  stats.pause_ifs = flat.filter((x) => x.flag == ReqFlag.PAUSEIF).length;
-  stats.pause_locks = flat.filter((x) => x.flag == ReqFlag.PAUSEIF && x.hits > 0).length;
+  stats.pause_ifs = flat.filter((x) => x.flag === ReqFlag.PAUSEIF).length;
+  stats.pause_locks = flat.filter((x) => x.flag === ReqFlag.PAUSEIF && x.hits > 0).length;
 
   // count of requirements with ResetIf
-  stats.reset_ifs = flat.filter((x) => x.flag == ReqFlag.RESETIF).length;
-  stats.reset_with_hits = flat.filter((x) => x.flag == ReqFlag.RESETIF && x.hits > 0).length;
+  stats.reset_ifs = flat.filter((x) => x.flag === ReqFlag.RESETIF).length;
+  stats.reset_with_hits = flat.filter((x) => x.flag === ReqFlag.RESETIF && x.hits > 0).length;
 
   // count of requirements with Deltas and Prior
-  stats.deltas = [...operands].filter((x) => x.type == ReqType.DELTA).length;
-  stats.priors = [...operands].filter((x) => x.type == ReqType.PRIOR).length;
+  stats.deltas = [...operands].filter((x) => x.type === ReqType.DELTA).length;
+  stats.priors = [...operands].filter((x) => x.type === ReqType.PRIOR).length;
 
   // list of addresses & virtual addresses
   stats.addresses = new Set(logic.getAddresses());
@@ -747,50 +772,67 @@ function generate_logic_stats(logic) {
     (x) =>
       x.hits > 0 &&
       x.isComparisonOperator() &&
-      x.op != "=" &&
+      x.op !== "=" &&
       x.rhs &&
-      x.lhs.value == x.rhs.value &&
+      x.lhs.value === x.rhs.value &&
       [x.lhs.type, x.rhs.type].includes(ReqType.MEM) &&
       [x.lhs.type, x.rhs.type].includes(ReqType.DELTA),
   ).length;
 
-  let groups_with_reset = new Set();
-  for (const [gi, g] of logic.groups.entries())
-    for (const [ri, req] of g.entries()) if (req.flag == ReqFlag.RESETIF) groups_with_reset.add(gi);
-
-  stats.pauselock_alt_reset = 0;
-  for (const [gi, g] of logic.groups.entries())
-    reqloop: for (const [ri, req] of g.entries()) {
-      // this is a pauselock
-      if (req.hits > 0 && req.flag == ReqFlag.PAUSEIF) {
-        for (let i = ri - 1; i >= 0; i--) {
-          if (g[i].flag == ReqFlag.RESETNEXTIF) continue reqloop;
-          if (g[i].isTerminating()) break;
-        }
-
-        if (groups_with_reset.difference(new Set([gi])).size != 0) stats.pauselock_alt_reset += 1;
+  const groups_with_reset = new Set();
+  for (const [gi, g] of logic.groups.entries()) {
+    for (const req of g) {
+      if (req.flag === ReqFlag.RESETIF) {
+        groups_with_reset.add(gi);
       }
     }
+  }
 
-  let smod = (stats.source_modification = new Map(
+  stats.pauselock_alt_reset = 0;
+  for (const [gi, g] of logic.groups.entries()) {
+    reqloop: for (const [ri, req] of g.entries()) {
+      // this is a pauselock
+      if (req.hits > 0 && req.flag === ReqFlag.PAUSEIF) {
+        for (let i = ri - 1; i >= 0; i--) {
+          if (g[i].flag === ReqFlag.RESETNEXTIF) {
+            continue reqloop;
+          }
+          if (g[i].isTerminating()) {
+            break;
+          }
+        }
+
+        if (groups_with_reset.difference(new Set([gi])).size !== 0) {
+          stats.pauselock_alt_reset += 1;
+        }
+      }
+    }
+  }
+
+  const smod = (stats.source_modification = new Map(
     ["*", "/", "&", "^", "%", "+", "-"].map((x) => [x, 0]),
   ));
-  for (let req of flat) if (smod.has(req.op)) smod.set(req.op, smod.get(req.op) + 1);
+  for (const req of flat) {
+    if (smod.has(req.op)) {
+      smod.set(req.op, smod.get(req.op) + 1);
+    }
+  }
 
   // is Remember/Recall used in this logic?
   stats.remember_recall =
-    flat.some((x) => x.flag == ReqFlag.REMEMBER) ||
-    [...operands].some((x) => x.type == ReqType.RECALL);
+    flat.some((x) => x.flag === ReqFlag.REMEMBER) ||
+    [...operands].some((x) => x.type === ReqType.RECALL);
 
   // count of achievements with mixed AndNext and OrNext
   stats.mixed_andor_chains = chains.filter(
     (ch) =>
-      ch.some((req) => req.flag == ReqFlag.ANDNEXT) && ch.some((req) => req.flag == ReqFlag.ORNEXT),
+      ch.some((req) => req.flag === ReqFlag.ANDNEXT) &&
+      ch.some((req) => req.flag === ReqFlag.ORNEXT),
   ).length;
 
   // count of achievements with AddHits as a complex-OR
   stats.addhits_complex_or = chains.filter(
-    (ch) => ch.some((req) => req.flag == ReqFlag.ADDHITS) && ch[ch.length - 1].hits == 1,
+    (ch) => ch.some((req) => req.flag === ReqFlag.ADDHITS) && ch.at(-1).hits === 1,
   ).length;
 
   // does this use start-reset-trigger structure?
@@ -803,7 +845,7 @@ function generate_logic_stats(logic) {
 }
 
 function generate_leaderboard_stats(lb) {
-  let stats = {};
+  const stats = {};
 
   stats.is_instant_submission = lb.components["SUB"].groups.every((g) =>
     g.every((req) => req.isAlwaysTrue()),
@@ -814,12 +856,12 @@ function generate_leaderboard_stats(lb) {
       .slice(1)
       .some(
         (g) =>
-          g.some((req) => req.flag == ReqFlag.MEASUREDIF) &&
-          g.some((req) => req.flag == ReqFlag.MEASURED || req.flag == ReqFlag.MEASUREDP),
+          g.some((req) => req.flag === ReqFlag.MEASUREDIF) &&
+          g.some((req) => req.flag === ReqFlag.MEASURED || req.flag === ReqFlag.MEASUREDP),
       );
 
-  for (let block of ["START", "CANCEL", "SUBMIT", "VALUE"]) {
-    const tag = block.substring(0, 3);
+  for (const block of ["START", "CANCEL", "SUBMIT", "VALUE"]) {
+    const tag = block.slice(0, 3);
     stats[tag] = generate_logic_stats(lb.components[tag]);
   }
 
@@ -827,20 +869,20 @@ function generate_leaderboard_stats(lb) {
 }
 
 function generate_code_note_stats(notes) {
-  let stats = {};
+  const stats = {};
 
   stats.size_counts = new Map();
   stats.author_counts = new Map();
   for (const note of notes) {
     stats.author_counts.set(note.author, 1 + (stats.author_counts.get(note.author) ?? 0));
-    if (note.type != null || note.size != 1) {
-      let type = note.type ? note.type.name : "Unknown";
+    if (note.type != null || note.size !== 1) {
+      const type = note.type ? note.type.name : "Unknown";
       stats.size_counts.set(type, 1 + (stats.size_counts.get(type) ?? 0));
     }
   }
 
   stats.notes_count = notes.length;
-  let asset_addresses = [
+  const asset_addresses = [
     ...current.set.getAchievements().map((e) => ({ asset: e, addrs: e.logic.getAddresses() })),
     ...current.set.getLeaderboards().map((e) => ({
       asset: e,
@@ -868,7 +910,7 @@ function generate_code_note_stats(notes) {
       .map((e) => e.asset);
   });
 
-  let used_notes = notes.filter((x) => x.assetList.length > 0);
+  const used_notes = notes.filter((x) => x.assetList.length > 0);
 
   stats.notes_used = used_notes.length;
   stats.notes_unused = stats.notes_count - stats.notes_used;
@@ -877,11 +919,11 @@ function generate_code_note_stats(notes) {
 }
 
 function generate_rich_presence_stats(rp) {
-  let stats = {};
+  const stats = {};
 
   stats.mem_length = rp.text.length;
   stats.custom_macros = new Map(
-    [...Object.entries(rp.macros)].filter(([k, v]) => rp.custom_macros.has(k)),
+    Object.entries(rp.macros).filter(([k, v]) => rp.custom_macros.has(k)),
   );
   stats.lookups = rp.lookups;
 
@@ -896,26 +938,35 @@ function generate_rich_presence_stats(rp) {
 }
 
 function generate_set_stats(set) {
-  let stats = {};
+  const stats = {};
   stats.achievement_count = set.achievements.size;
   stats.leaderboard_count = set.leaderboards.size;
 
   const achievements = set.getAchievements();
   const leaderboards = set.getLeaderboards();
 
-  let all_logic_stats = [];
-  for (const ach of achievements) all_logic_stats.push(ach.feedback.stats);
-  for (const lb of leaderboards)
+  const all_logic_stats = [];
+  for (const ach of achievements) {
+    all_logic_stats.push(ach.feedback.stats);
+  }
+  for (const lb of leaderboards) {
     all_logic_stats.push(...Leaderboard.COMPONENT_TAGS.map((x) => lb.feedback.stats[x]));
+  }
 
   // counts of achievement types
-  let achstate = (stats.achievement_state = new Map(Object.values(AssetState).map((x) => [x, 0])));
-  for (const ach of achievements) achstate.set(ach.state, achstate.get(ach.state) + 1);
+  const achstate = (stats.achievement_state = new Map(
+    Object.values(AssetState).map((x) => [x, 0]),
+  ));
+  for (const ach of achievements) {
+    achstate.set(ach.state, achstate.get(ach.state) + 1);
+  }
 
-  let achtype = (stats.achievement_type = new Map(
+  const achtype = (stats.achievement_type = new Map(
     ["", "progression", "win_condition", "missable"].map((x) => [x, []]),
   ));
-  for (const ach of achievements) achtype.get(ach.achtype ?? "").push(ach);
+  for (const ach of achievements) {
+    achtype.get(ach.achtype ?? "").push(ach);
+  }
 
   // points total and average
   stats.total_points = achievements.reduce((a, e) => a + e.points, 0);
@@ -947,17 +998,26 @@ function generate_set_stats(set) {
 
   // count of achievements using each flag type
   stats.using_flag = new Map(Object.values(ReqFlag).map((x) => [x, new Set()]));
-  for (const ach of achievements)
-    for (const flag of ach.feedback.stats.unique_flags) stats.using_flag.get(flag).add(ach);
-  for (const lb of leaderboards)
-    for (const block of ["STA", "CAN", "SUB", "VAL"])
-      for (const flag of lb.feedback.stats[block].unique_flags) stats.using_flag.get(flag).add(lb);
+  for (const ach of achievements) {
+    for (const flag of ach.feedback.stats.unique_flags) {
+      stats.using_flag.get(flag).add(ach);
+    }
+  }
+  for (const lb of leaderboards) {
+    for (const block of ["STA", "CAN", "SUB", "VAL"]) {
+      for (const flag of lb.feedback.stats[block].unique_flags) {
+        stats.using_flag.get(flag).add(lb);
+      }
+    }
+  }
 
   // count leaderboard types
-  let lbtype = (stats.leaderboard_type = new Map());
+  const lbtype = (stats.leaderboard_type = new Map());
   for (const lb of leaderboards) {
-    let t = lb.getType();
-    if (!lbtype.has(t)) lbtype.set(t, []);
+    const t = lb.getType();
+    if (!lbtype.has(t)) {
+      lbtype.set(t, []);
+    }
     lbtype.get(t).push(lb);
   }
 
@@ -970,40 +1030,56 @@ function generate_set_stats(set) {
   ).length;
 
   if (current.notes.length > 0) {
-    let addrs = new Map();
+    const addrs = new Map();
     function _attach_source(addr, val) {
-      if (!addrs.has(addr)) addrs.set(addr, []);
+      if (!addrs.has(addr)) {
+        addrs.set(addr, []);
+      }
       addrs.get(addr).push(val);
     }
 
-    for (const ach of achievements)
-      for (const addr of new Set(ach.logic.getAddresses()))
+    for (const ach of achievements) {
+      for (const addr of new Set(ach.logic.getAddresses())) {
         _attach_source(addr, `🏆 Achievement: ${ach.title}`);
-    for (const lb of leaderboards)
-      for (const [tag, logic] of Object.entries(lb.components))
-        for (const addr of new Set(logic.getAddresses()))
+      }
+    }
+    for (const lb of leaderboards) {
+      for (const [tag, logic] of Object.entries(lb.components)) {
+        for (const addr of new Set(logic.getAddresses())) {
           _attach_source(addr, `📊 Leaderboard (${tag}): ${lb.title}`);
+        }
+      }
+    }
 
     let displayMode = false,
       clause = 0;
-    if (current.rp && current.rp.text)
-      for (const line of current.rp.text.split(/\r\n|(?!\r\n)[\n-\r\x85\u2028\u2029]/g)) {
-        if (line.toLowerCase().startsWith("Display:")) displayMode = true;
-        if (displayMode)
+    if (current.rp && current.rp.text) {
+      for (const line of current.rp.text.split(/\r\n|(?!\r\n)[\n-\r\u0085\u2028\u2029]/g)) {
+        if (line.toLowerCase().startsWith("Display:")) {
+          displayMode = true;
+        }
+        if (displayMode) {
           for (const m of line.matchAll(/^(\?(.+)\?)?(.+)$/g)) {
             clause++;
-            if (m[1] != "")
-              // check the condition
-              for (const addr of Logic.fromString(m[2]).getAddresses())
+            if (m[1] !== "")
+            // check the condition
+            {
+              for (const addr of Logic.fromString(m[2]).getAddresses()) {
                 _attach_source(addr, `🎮 Rich Presence Display Condition #${clause}`);
-            for (const m2 of m[3].matchAll(/@([ _a-z][ _a-z0-9]*)\((.+?)\)/gi))
-              for (const addr of Logic.fromString(m2[2]).getAddresses())
+              }
+            }
+            for (const m2 of m[3].matchAll(/@([ _a-z][ _a-z0-9]*)\((.+?)\)/gi)) {
+              for (const addr of Logic.fromString(m2[2]).getAddresses()) {
                 _attach_source(
                   addr,
                   `🎮 Rich Presence Display Lookup(${m2[1]}) in Clause #${clause}`,
                 );
+              }
+            }
           }
+        }
       }
+    }
 
     stats.missing_notes = new Map(
       [...addrs.entries()].filter(([x, _]) => !current.notes.some((note) => note.contains(x))),
@@ -1039,66 +1115,77 @@ function* check_deltas(logic) {
     </ul>
   );
 
-  if (!logic.getOperands().some((x) => x.type == ReqType.DELTA)) {
+  if (!logic.getOperands().some((x) => x.type === ReqType.DELTA)) {
     yield new Issue(Feedback.MISSING_DELTA, null, DELTA_FEEDBACK);
     return;
   }
 
-  let corememset = new Set();
+  const corememset = new Set();
   let _prefix = "";
-  for (const [ri, req] of logic.groups[0].entries()) {
-    if (req.flag == ReqFlag.ADDADDRESS)
+  for (const req of logic.groups[0]) {
+    if (req.flag === ReqFlag.ADDADDRESS) {
       _prefix += req.lhs.toString() + (!req.rhs ? "" : req.op + req.rhs.toString()) + ":";
-    else {
-      if (req.lhs && req.lhs.type.addr == ReqAddrType.CURRENT)
+    } else {
+      if (req.lhs && req.lhs.type.addr === ReqAddrType.CURRENT) {
         corememset.add(_prefix + req.lhs.toString());
-      if (req.rhs && req.rhs.type.addr == ReqAddrType.CURRENT)
+      }
+      if (req.rhs && req.rhs.type.addr === ReqAddrType.CURRENT) {
         corememset.add(_prefix + req.rhs.toString());
+      }
       _prefix = "";
     }
   }
 
-  let core_unmatched_delta_set = new Set();
-  let delta_groups = logic.groups.map((g, gi) => {
+  const core_unmatched_delta_set = new Set();
+  const delta_groups = logic.groups.map((g, gi) => {
     // If the group contains an always-false condition, it can never trigger.
     // Therefore, it doesn't need a delta. Consider it "valid" for this check.
-    if (g.some((req) => req.isAlwaysFalse())) return true;
+    if (g.some((req) => req.isAlwaysFalse())) {
+      return true;
+    }
 
     let has_delta = false;
     let _prefix = "";
 
-    let memset = new Set(corememset);
-    for (const [ri, req] of g.entries()) {
-      if (req.flag == ReqFlag.ADDADDRESS)
+    const memset = new Set(corememset);
+    for (const req of g) {
+      if (req.flag === ReqFlag.ADDADDRESS) {
         _prefix += req.lhs.toString() + (!req.rhs ? "" : req.op + req.rhs.toString()) + ":";
-      else {
-        if (req.lhs && req.lhs.type.addr == ReqAddrType.CURRENT)
+      } else {
+        if (req.lhs && req.lhs.type.addr === ReqAddrType.CURRENT) {
           memset.add(_prefix + req.lhs.toString());
-        if (req.rhs && req.rhs.type.addr == ReqAddrType.CURRENT)
+        }
+        if (req.rhs && req.rhs.type.addr === ReqAddrType.CURRENT) {
           memset.add(_prefix + req.rhs.toString());
+        }
         _prefix = "";
       }
     }
 
     _prefix = "";
-    for (const [ri, req] of g.entries()) {
-      if (req.flag == ReqFlag.ADDADDRESS)
+    for (const req of g) {
+      if (req.flag === ReqFlag.ADDADDRESS) {
         _prefix += req.lhs.toString() + (!req.rhs ? "" : req.op + req.rhs.toString()) + ":";
-      else {
+      } else {
         // a delta only counts if it has a matching mem value
-        for (let op of [req.lhs, req.rhs])
-          if (op && op.type == ReqType.DELTA) {
-            let delta_has_mem = memset.has(_prefix + op.toString());
+        for (const op of [req.lhs, req.rhs]) {
+          if (op && op.type === ReqType.DELTA) {
+            const delta_has_mem = memset.has(_prefix + op.toString());
             has_delta ||= delta_has_mem;
 
-            if (!delta_has_mem && gi == 0) core_unmatched_delta_set.add(_prefix + op.toString());
+            if (!delta_has_mem && gi === 0) {
+              core_unmatched_delta_set.add(_prefix + op.toString());
+            }
           }
+        }
         _prefix = "";
       }
 
       if (req.isTerminating()) {
         // this is the end of a chain that contained a delta and wasnt a reset or pause
-        if (has_delta && !PAUSERESET.has(req.flag)) return true;
+        if (has_delta && !PAUSERESET.has(req.flag)) {
+          return true;
+        }
         has_delta = false;
       }
     }
@@ -1106,24 +1193,30 @@ function* check_deltas(logic) {
   });
 
   // either the core group must have the valid mem/delta check, or *all* alt groups
-  if (delta_groups[0] || (delta_groups.length > 1 && delta_groups.slice(1).every((x) => x))) return;
+  if (delta_groups[0] || (delta_groups.length > 1 && delta_groups.slice(1).every(Boolean))) {
+    return;
+  }
 
   // At this point, delta_groups[0] could be "wrongfully" tagged as false in the case the core holds a delta that is
   //  matched by a Mem in each alt (but not in core)
   for (const core_unmatched_delta of core_unmatched_delta_set) {
-    let mem_groups = logic.groups.slice(1).map((g, gi) => {
+    const mem_groups = logic.groups.slice(1).map((g, gi) => {
       // If the group contains an always-false condition, it can never trigger.
       // Therefore, it doesn't need a mem matching this delta from the core
-      if (g.some((req) => req.isAlwaysFalse())) return true;
+      if (g.some((req) => req.isAlwaysFalse())) {
+        return true;
+      }
 
       let _prefix = "";
-      for (const [ri, req] of g.entries()) {
-        if (req.flag == ReqFlag.ADDADDRESS)
+      for (const req of g) {
+        if (req.flag === ReqFlag.ADDADDRESS) {
           _prefix += req.lhs.toString() + (!req.rhs ? "" : req.op + req.rhs.toString()) + ":";
-        else {
-          for (let op of [req.lhs, req.rhs])
-            if (op && op.type == ReqType.MEM && core_unmatched_delta == _prefix + op.toString())
+        } else {
+          for (const op of [req.lhs, req.rhs]) {
+            if (op && op.type === ReqType.MEM && core_unmatched_delta === _prefix + op.toString()) {
               return true;
+            }
+          }
           _prefix = "";
         }
       }
@@ -1131,7 +1224,9 @@ function* check_deltas(logic) {
     });
 
     // We only need one delta in core that is matched by a mem in all alts
-    if (mem_groups.every((x) => x)) return;
+    if (mem_groups.every(Boolean)) {
+      return;
+    }
   }
 
   // we know there's an issue
@@ -1140,20 +1235,22 @@ function* check_deltas(logic) {
 
 function* check_missing_notes(logic) {
   // skip this if notes aren't loaded
-  if (!current.notes.length) return;
+  if (!current.notes.length) {
+    return;
+  }
 
-  for (const [gi, g] of logic.groups.entries()) {
+  for (const g of logic.groups) {
     let chain = [];
     let chainIsDynamic = false;
 
-    for (const [ri, req] of g.entries()) {
+    for (const req of g) {
       // Pointer Chain Logic:
       // If this requirement is an Add Address, we build up the chain context
       // and skip validation, as these are intermediate steps.
-      if (req.flag == ReqFlag.ADDADDRESS) {
+      if (req.flag === ReqFlag.ADDADDRESS) {
         // If the AddAddress uses a Recall operand, the pointer becomes dynamic/unknown at static analysis time.
         // We mark the chain as dynamic so we can skip validating the subsequent leaf.
-        if (req.lhs && req.lhs.type == ReqType.RECALL) {
+        if (req.lhs && req.lhs.type === ReqType.RECALL) {
           chainIsDynamic = true;
         }
 
@@ -1201,18 +1298,26 @@ function* check_missing_notes(logic) {
 
       let lastreport = null;
       for (const operand of [req.lhs, req.rhs]) {
-        if (!operand || !operand.type || !operand.type.addr) continue;
+        if (!operand || !operand.type || !operand.type.addr) {
+          continue;
+        }
 
         // Use the existing note parsing logic to see if this address (with chain context)
         // resolves to any note text.
         const noteText = current.notes.get_text(operand.value, chain);
-        if (noteText) continue;
+        if (noteText) {
+          continue;
+        }
 
-        if (lastreport == operand.value) continue;
+        if (lastreport === operand.value) {
+          continue;
+        }
         lastreport = operand.value;
 
         let msg = `Address ${toDisplayHex(operand.value)} missing note`;
-        if (chain.length > 0) msg += " (or pointer base missing)";
+        if (chain.length > 0) {
+          msg += " (or pointer base missing)";
+        }
 
         yield new Issue(
           Feedback.MISSING_NOTE,
@@ -1232,25 +1337,32 @@ function* check_missing_notes(logic) {
 
 function* check_mismatch_notes(logic) {
   // skip this if notes aren't loaded
-  if (!current.notes.length) return;
+  if (!current.notes.length) {
+    return;
+  }
 
-  for (const [gi, g] of logic.groups.entries()) {
+  for (const g of logic.groups) {
     let prev_addaddress = false;
-    for (const [ri, req] of g.entries()) {
-      let lastreport = null;
-      if (!prev_addaddress)
+    for (const req of g) {
+      // oxlint-disable-next-line no-unused-vars
+      const lastreport = null;
+      if (!prev_addaddress) {
         for (const operand of [req.lhs, req.rhs]) {
-          if (!operand?.type?.addr) continue;
+          if (!operand?.type?.addr) {
+            continue;
+          }
           const note = current.notes.get(operand.value);
-          if (!note) continue;
+          if (!note) {
+            continue;
+          }
 
           // if the note size info is unknown, give up I guess
           if (
             note.type &&
             operand.size &&
             !PartialAccess.has(operand.size) &&
-            operand.size != note.type
-          )
+            operand.size !== note.type
+          ) {
             yield new Issue(
               Feedback.TYPE_MISMATCH,
               req,
@@ -1265,51 +1377,60 @@ function* check_mismatch_notes(logic) {
                 </li>
               </ul>,
             );
+          }
         }
-      prev_addaddress = req.flag == ReqFlag.ADDADDRESS;
+      }
+      prev_addaddress = req.flag === ReqFlag.ADDADDRESS;
     }
   }
 }
 
 function* check_pointers(logic) {
   // check for pointer comparisons against a value that is non-zero
-  for (const [gi, g] of logic.groups.entries()) {
-    for (const [ri, req] of g.entries()) {
-      if (!req.lhs?.type?.addr) continue;
+  for (const g of logic.groups) {
+    for (const req of g) {
+      if (!req.lhs?.type?.addr) {
+        continue;
+      }
       const note = current.notes.get(req.lhs.value);
-      if (!note) continue;
+      if (!note) {
+        continue;
+      }
 
       if (
         note.isProbablePointer() &&
         req.isComparisonOperator() &&
-        req.rhs.type == ReqType.VALUE &&
-        req.rhs.value != 0
-      )
-        yield new Issue(Feedback.POINTER_COMPARISON, req); // TODO: provide better feedback
+        req.rhs.type === ReqType.VALUE &&
+        req.rhs.value !== 0
+      ) {
+        yield new Issue(Feedback.POINTER_COMPARISON, req);
+      } // TODO: provide better feedback
     }
   }
 }
 
 function* check_valid_offsets(logic) {
-  for (const [gi, g] of logic.groups.entries()) {
+  for (const g of logic.groups) {
     let isOffset = false;
-    for (const [ri, req] of g.entries()) {
+    for (const req of g) {
       if (isOffset) {
-        for (const op of [req.lhs, req.rhs])
-          if (op && op.type.addr && op.value >= 0x80000000)
+        for (const op of [req.lhs, req.rhs]) {
+          if (op && op.type.addr && op.value >= 0x80000000) {
             yield new Issue(Feedback.NEGATIVE_OFFSET, req);
+          }
+        }
       }
-      isOffset = req.flag == ReqFlag.ADDADDRESS;
+      isOffset = req.flag === ReqFlag.ADDADDRESS;
     }
   }
 }
 
 function* check_priors(logic) {
-  for (const [gi, g] of logic.groups.entries()) {
-    for (const [ai, a] of g.entries())
-      if (ReqOperand.sameValue(a.lhs, a.rhs) && a.op == "!=") {
+  for (const g of logic.groups) {
+    for (const a of g) {
+      if (ReqOperand.sameValue(a.lhs, a.rhs) && a.op === "!=") {
         const _a = a.canonicalize();
-        if (_a.lhs.type.addr == ReqAddrType.CURRENT && _a.rhs.type == ReqType.PRIOR)
+        if (_a.lhs.type.addr === ReqAddrType.CURRENT && _a.rhs.type === ReqType.PRIOR) {
           yield new Issue(
             Feedback.BAD_PRIOR,
             a,
@@ -1324,16 +1445,18 @@ function* check_priors(logic) {
               </li>
             </ul>,
           );
+        }
       }
+    }
 
     for (const [ai, a] of g.entries()) {
       const _a = a.canonicalize();
-      if (_a.op == "!=" && _a.lhs.type == ReqType.PRIOR && !_a.rhs.type.addr)
-        for (const [bi, b] of g.entries())
-          if (ai != bi) {
+      if (_a.op === "!=" && _a.lhs.type === ReqType.PRIOR && !_a.rhs.type.addr) {
+        for (const [bi, b] of g.entries()) {
+          if (ai !== bi) {
             const _b = b.canonicalize();
-            if (_b.op == "=" && _b.lhs.type.addr == ReqAddrType.CURRENT && !_b.rhs.type.addr) {
-              if (ReqOperand.equals(_a.rhs, _b.rhs) && ReqOperand.sameValue(_a.lhs, _b.lhs))
+            if (_b.op === "=" && _b.lhs.type.addr === ReqAddrType.CURRENT && !_b.rhs.type.addr) {
+              if (ReqOperand.equals(_a.rhs, _b.rhs) && ReqOperand.sameValue(_a.lhs, _b.lhs)) {
                 yield new Issue(
                   Feedback.BAD_PRIOR,
                   a,
@@ -1348,30 +1471,40 @@ function* check_priors(logic) {
                     </li>
                   </ul>,
                 );
+              }
             }
           }
+        }
+      }
     }
   }
 }
 
 function* check_bad_chains(logic) {
-  for (const [gi, g] of logic.groups.entries()) {
-    const last = g[g.length - 1];
-    if (last && last.flag && last.flag.chain) yield new Issue(Feedback.BAD_CHAIN, last);
+  for (const g of logic.groups) {
+    const last = g.at(-1);
+    if (last && last.flag && last.flag.chain) {
+      yield new Issue(Feedback.BAD_CHAIN, last);
+    }
   }
 }
 
 function* check_stale_addaddress(logic) {
-  for (const [gi, g] of logic.groups.entries())
-    for (const [ri, req] of g.entries()) {
+  for (const g of logic.groups) {
+    for (const req of g) {
       // using AddAddress with Delta/Prior is dangerous
-      if (req.flag == ReqFlag.ADDADDRESS && [ReqType.DELTA, ReqType.PRIOR].includes(req.lhs.type))
+      if (
+        req.flag === ReqFlag.ADDADDRESS &&
+        [ReqType.DELTA, ReqType.PRIOR].includes(req.lhs.type)
+      ) {
         yield new Issue(Feedback.STALE_ADDADDRESS, req);
+      }
     }
+  }
 }
 
 function* check_oca(logic) {
-  if (!logic.value && logic.getMemoryLookups().size <= 1)
+  if (!logic.value && logic.getMemoryLookups().size <= 1) {
     yield new Issue(
       Feedback.ONE_CONDITION,
       null,
@@ -1386,74 +1519,108 @@ function* check_oca(logic) {
         </li>
       </ul>,
     );
+  }
 }
 
 function* check_pauselocks(logic) {
-  let groups_with_reset = new Set();
-  for (const [gi, g] of logic.groups.entries())
-    for (const [ri, req] of g.entries()) if (req.flag == ReqFlag.RESETIF) groups_with_reset.add(gi);
+  const groups_with_reset = new Set();
+  for (const [gi, g] of logic.groups.entries()) {
+    for (const req of g) {
+      if (req.flag === ReqFlag.RESETIF) {
+        groups_with_reset.add(gi);
+      }
+    }
+  }
 
-  for (const [gi, g] of logic.groups.entries())
+  for (const [gi, g] of logic.groups.entries()) {
     reqloop: for (const [ri, req] of g.entries()) {
       // this is a pauselock
-      if (req.hits > 0 && req.flag == ReqFlag.PAUSEIF) {
+      if (req.hits > 0 && req.flag === ReqFlag.PAUSEIF) {
         for (let i = ri - 1; i >= 0; i--) {
-          if (g[i].flag == ReqFlag.RESETNEXTIF) continue reqloop;
-          if (g[i].isTerminating()) break;
+          if (g[i].flag === ReqFlag.RESETNEXTIF) {
+            continue reqloop;
+          }
+          if (g[i].isTerminating()) {
+            break;
+          }
         }
 
         // no RNI found, so if there isn't an alt reset, that's a problem
-        if (groups_with_reset.difference(new Set([gi])).size == 0)
+        if (groups_with_reset.difference(new Set([gi])).size === 0) {
           yield new Issue(Feedback.PAUSELOCK_NO_RESET, req);
+        }
       }
     }
+  }
 }
 
 function* check_uncleared_hits(logic) {
   // value groups don't require resets
-  if (logic.value) return;
+  if (logic.value) {
+    return;
+  }
 
   let has_resetif = false;
-  resetifloop: for (const [gi, g] of logic.groups.entries())
-    for (const [ri, req] of g.entries())
-      if (req.flag == ReqFlag.RESETIF) {
+  resetifloop: for (const g of logic.groups) {
+    for (const req of g) {
+      if (req.flag === ReqFlag.RESETIF) {
         has_resetif = true;
         break resetifloop;
       }
+    }
+  }
 
-  for (const [gi, g] of logic.groups.entries())
+  for (const g of logic.groups) {
     reqloop: for (const [ri, req] of g.entries()) {
       // a reset with hits is still a reset, and a pause with hits is a pauselock
-      if (req.hits > 0 && req.flag != ReqFlag.RESETIF && req.flag != ReqFlag.PAUSEIF) {
+      if (req.hits > 0 && req.flag !== ReqFlag.RESETIF && req.flag !== ReqFlag.PAUSEIF) {
         for (let i = ri - 1; i >= 0; i--) {
-          if (g[i].flag == ReqFlag.RESETNEXTIF) continue reqloop;
-          if (g[i].isTerminating()) break;
+          if (g[i].flag === ReqFlag.RESETNEXTIF) {
+            continue reqloop;
+          }
+          if (g[i].isTerminating()) {
+            break;
+          }
         }
 
         // no RNI found, so if there isn't a reset, that's a problem
-        if (!has_resetif) yield new Issue(Feedback.HIT_NO_RESET, req);
+        if (!has_resetif) {
+          yield new Issue(Feedback.HIT_NO_RESET, req);
+        }
       }
     }
+  }
 }
 
 function* check_uuo_andnext(logic) {
-  for (const [gi, g] of logic.groups.entries()) {
+  for (const g of logic.groups) {
     let andnext_chain = [],
       valid = false;
-    for (const [ri, req] of g.entries()) {
+    for (const req of g) {
       // add all AndNexts to a chain
-      if (req.flag == ReqFlag.ANDNEXT) andnext_chain.push(req);
+      if (req.flag === ReqFlag.ANDNEXT) {
+        andnext_chain.push(req);
+      }
       // if there's an OrNext flag, I'm just going to let this go
-      if (req.flag == ReqFlag.ORNEXT) valid = true;
+      if (req.flag === ReqFlag.ORNEXT) {
+        valid = true;
+      }
       // if there are hitcounts *anywhere* in this chain, valid
-      if (req.hits != 0) valid = true;
+      if (req.hits !== 0) {
+        valid = true;
+      }
 
       if (req.isTerminating()) {
         // if the chain terminates at any actual flag, valid
-        if (req.flag || req.hits > 0) valid = true;
+        if (req.flag || req.hits > 0) {
+          valid = true;
+        }
 
-        if (andnext_chain.length && !valid)
-          for (const andreq of andnext_chain) yield new Issue(Feedback.USELESS_ANDNEXT, andreq);
+        if (andnext_chain.length && !valid) {
+          for (const andreq of andnext_chain) {
+            yield new Issue(Feedback.USELESS_ANDNEXT, andreq);
+          }
+        }
         andnext_chain = [];
         valid = false;
       }
@@ -1463,23 +1630,26 @@ function* check_uuo_andnext(logic) {
 
 function* check_uuo_pause(logic) {
   let has_hits = false;
-  hitloop: for (const [gi, g] of logic.groups.entries())
-    for (const [ri, req] of g.entries())
+  hitloop: for (const g of logic.groups) {
+    for (const req of g) {
       if (req.hits > 0) {
         has_hits = true;
         break hitloop;
       }
+    }
+  }
 
-  for (const [gi, g] of logic.groups.entries()) {
-    let group_flags = new Set(g.map((x) => x.flag));
+  for (const g of logic.groups) {
+    const group_flags = new Set(g.map((x) => x.flag));
     for (const [ri, req] of g.entries()) {
-      if (req.flag == ReqFlag.PAUSEIF && !has_hits) {
+      if (req.flag === ReqFlag.PAUSEIF && !has_hits) {
         // if the group has a Measured flag, give a slightly different warning
-        if (group_flags.has(ReqFlag.MEASURED) || group_flags.has(ReqFlag.MEASUREDP))
+        if (group_flags.has(ReqFlag.MEASURED) || group_flags.has(ReqFlag.MEASUREDP)) {
           yield new Issue(Feedback.PAUSING_MEASURED, req);
+        }
 
         // pause in a value group can freeze the reported value, and therefore is fine
-        else if (!logic.value)
+        else if (!logic.value) {
           yield new Issue(
             Feedback.UUO_PAUSE,
             req,
@@ -1490,6 +1660,7 @@ function* check_uuo_pause(logic) {
               </pre>
             </ul>,
           );
+        }
       }
     }
   }
@@ -1497,19 +1668,25 @@ function* check_uuo_pause(logic) {
 
 function* check_uuo_reset(logic) {
   let has_hits = false;
-  hitloop: for (const [gi, g] of logic.groups.entries())
-    for (const [ri, req] of g.entries())
+  hitloop: for (const g of logic.groups) {
+    for (const req of g) {
       if (req.hits > 0) {
         has_hits = true;
         break hitloop;
       }
+    }
+  }
 
-  for (const [gi, g] of logic.groups.entries()) {
-    let group_flags = new Set(g.map((x) => x.flag));
+  for (const g of logic.groups) {
+    const group_flags = new Set(g.map((x) => x.flag));
     for (const [ri, req] of g.entries()) {
-      if (req.flag == ReqFlag.RESETIF && !has_hits) {
+      if (req.flag === ReqFlag.RESETIF && !has_hits) {
         // ResetIf with a measured should be fine in a value
-        if (!logic.value || group_flags.has(ReqFlag.MEASURED) || group_flags.has(ReqFlag.MEASUREDP))
+        if (
+          !logic.value ||
+          group_flags.has(ReqFlag.MEASURED) ||
+          group_flags.has(ReqFlag.MEASUREDP)
+        ) {
           yield new Issue(
             Feedback.UUO_RESET,
             req,
@@ -1520,44 +1697,59 @@ function* check_uuo_reset(logic) {
               </pre>
             </ul>,
           );
+        }
       }
     }
   }
 }
 
 function* check_reset_with_hits(logic) {
-  for (const [gi, g] of logic.groups.entries()) {
+  for (const g of logic.groups) {
     let has_addhits = false;
-    for (const [ri, req] of g.entries()) {
-      if (!has_addhits && req.flag == ReqFlag.RESETIF && req.hits == 1)
+    for (const req of g) {
+      if (!has_addhits && req.flag === ReqFlag.RESETIF && req.hits === 1) {
         yield new Issue(Feedback.RESET_HITCOUNT_1, req);
+      }
 
-      if (req.flag == ReqFlag.ADDHITS) has_addhits = true;
-      else if (!req.flag || !req.flag.chain) has_addhits = false;
+      if (req.flag === ReqFlag.ADDHITS) {
+        has_addhits = true;
+      } else if (!req.flag || !req.flag.chain) {
+        has_addhits = false;
+      }
     }
   }
 }
 
 function* check_uuo_resetnextif(logic) {
-  for (const [gi, g] of logic.groups.entries())
+  for (const g of logic.groups) {
     for (const [ri, req] of g.entries()) {
-      if (req.flag == ReqFlag.RESETNEXTIF) {
+      if (req.flag === ReqFlag.RESETNEXTIF) {
         for (let i = ri + 1; i < g.length; i++) {
           // if the requirement has hits, RNI is valid
-          if (g[i].hits > 0) break;
+          if (g[i].hits > 0) {
+            break;
+          }
 
           // if this is a combining flag like AddAddress or AndNext, the chain continues
-          if (!g[i].isTerminating()) continue;
+          if (!g[i].isTerminating()) {
+            continue;
+          }
 
           // ResetNextIf with any Add/SubHits should always be valid
-          if ([ReqFlag.ADDHITS, ReqFlag.SUBHITS].includes(g[i].flag)) break;
+          if ([ReqFlag.ADDHITS, ReqFlag.SUBHITS].includes(g[i].flag)) {
+            break;
+          }
 
           // ResetNextIf with a measured should be fine in a value
-          if (logic.value && [ReqFlag.MEASURED, ReqFlag.MEASUREDP].includes(g[i].flag)) break;
+          if (logic.value && [ReqFlag.MEASURED, ReqFlag.MEASUREDP].includes(g[i].flag)) {
+            break;
+          }
 
           // RNI(1+)->PauseIf(0) is `Pause Until`
           // ref: https://docs.retroachievements.org/developer-docs/achievement-templates.html#pause-until-using-pauseif-to-prevent-achievement-processing-until-some-condition-is-met
-          if (req.hits > 0 && g[i].flag == ReqFlag.PAUSEIF) break;
+          if (req.hits > 0 && g[i].flag === ReqFlag.PAUSEIF) {
+            break;
+          }
 
           // otherwise, RNI was not valid
           yield new Issue(Feedback.UUO_RNI, req);
@@ -1565,39 +1757,45 @@ function* check_uuo_resetnextif(logic) {
         }
       }
     }
+  }
 }
 
 function* check_uuo_addhits(logic) {
-  for (const [gi, g] of logic.groups.entries()) {
+  for (const g of logic.groups) {
     let has_addhits = false;
-    for (const [ri, req] of g.entries()) {
-      has_addhits ||= req.flag == ReqFlag.ADDHITS || req.flag == ReqFlag.SUBHITS;
+    for (const req of g) {
+      has_addhits ||= req.flag === ReqFlag.ADDHITS || req.flag === ReqFlag.SUBHITS;
       if (!req.flag || !req.flag.chain) {
-        if (!logic.value && has_addhits && req.hits == 0)
+        if (!logic.value && has_addhits && req.hits === 0) {
           yield new Issue(Feedback.ADDHITS_WITHOUT_TARGET, req);
+        }
         has_addhits = false;
       }
     }
   }
 }
 
+// oxlint-disable-next-line no-unused-vars
 function* check_missing_enum(logic) {
-  for (const [gi, g] of logic.groups.entries())
+  for (const g of logic.groups) {
     for (const [ri, req] of g.entries()) {
-      if (ri > 0 && g[ri - 1].flag == ReqFlag.ADDADDRESS) continue;
-      let creq = req.canonicalize();
+      if (ri > 0 && g[ri - 1].flag === ReqFlag.ADDADDRESS) {
+        continue;
+      }
+      const creq = req.canonicalize();
 
-      if (creq.lhs.type.addr && creq.rhs && creq.rhs.type == ReqType.VALUE)
-        for (const note of current.notes)
+      if (creq.lhs.type.addr && creq.rhs && creq.rhs.type === ReqType.VALUE) {
+        for (const note of current.notes) {
           if (note.contains(creq.lhs.value) && note.enum) {
             let found = false;
-            enumloop: for (const e of note.enum)
-              if (e.value == creq.rhs.value) {
+            enumloop: for (const e of note.enum) {
+              if (e.value === creq.rhs.value) {
                 found = true;
                 break enumloop;
               }
+            }
 
-            if (!found)
+            if (!found) {
               yield new Issue(
                 Feedback.MISSING_ENUMERATION,
                 req,
@@ -1608,13 +1806,17 @@ function* check_missing_enum(logic) {
                   </li>
                 </ul>,
               );
+            }
           }
+        }
+      }
     }
+  }
 }
 
 function* check_title_case(asset) {
-  let corrected_title = make_title_case(asset.title);
-  if (corrected_title != asset.title) {
+  const corrected_title = make_title_case(asset.title);
+  if (corrected_title !== asset.title) {
     const q = encodeURIComponent(asset.title);
     yield new Issue(
       Feedback.TITLE_CASE,
@@ -1627,15 +1829,15 @@ function* check_title_case(asset) {
         <ul>
           <li>
             <a
-              target="_blank"
               href={`https://titlecaseconverter.com/?style=CMOS&showExplanations=1&keepAllCaps=1&multiLine=1&highlightChanges=1&convertOnPaste=1&straightQuotes=1&title=${q}`}
+              target="_blank"
             >
               titlecaseconverter.com
             </a>{" "}
             &mdash; preferred by Writing Team
           </li>
           <li>
-            <a target="_blank" href={`https://capitalizemytitle.com/style/Chicago/?title=${q}`}>
+            <a href={`https://capitalizemytitle.com/style/Chicago/?title=${q}`} target="_blank">
               capitalizemytitle.com
             </a>{" "}
             &mdash; for backup feedback
@@ -1643,7 +1845,7 @@ function* check_title_case(asset) {
         </ul>
         <li>
           <em>
-            Warning: automated suggestions don't handle hyphenated or otherwise-separated words
+            Warning: automated suggestions don&apos;t handle hyphenated or otherwise-separated words
             gracefully. When in doubt, please rely on the sites linked above.
           </em>
         </li>
@@ -1653,13 +1855,14 @@ function* check_title_case(asset) {
 }
 
 function HighlightedFeedback({ text, pattern }) {
-  let parts = text.split(pattern);
-  for (let i = 1; i < parts.length; i += 2)
+  const parts = text.split(pattern);
+  for (let i = 1; i < parts.length; i += 2) {
     parts[i] = (
-      <span key={i} className="warn">
+      <span className="warn" key={i}>
         {parts[i]}
       </span>
     );
+  }
   return <>{parts}</>;
 }
 
@@ -1667,39 +1870,44 @@ const EMOJI_RE = /(\p{Emoji_Presentation})/gu;
 const TYPOGRAPHY_PUNCT = /([\u2018\u2019\u201C\u201D])/gu;
 const FOREIGN_RE =
   /([\p{Script=Arabic}\p{Script=Armenian}\p{Script=Bengali}\p{Script=Bopomofo}\p{Script=Braille}\p{Script=Buhid}\p{Script=Canadian_Aboriginal}\p{Script=Cherokee}\p{Script=Cyrillic}\p{Script=Devanagari}\p{Script=Ethiopic}\p{Script=Georgian}\p{Script=Greek}\p{Script=Gujarati}\p{Script=Gurmukhi}\p{Script=Han}\p{Script=Hangul}\p{Script=Hanunoo}\p{Script=Hebrew}\p{Script=Hiragana}\p{Script=Inherited}\p{Script=Kannada}\p{Script=Katakana}\p{Script=Khmer}\p{Script=Lao}\p{Script=Limbu}\p{Script=Malayalam}\p{Script=Mongolian}\p{Script=Myanmar}\p{Script=Ogham}\p{Script=Oriya}\p{Script=Runic}\p{Script=Sinhala}\p{Script=Syriac}\p{Script=Tagalog}\p{Script=Tagbanwa}\p{Script=Tamil}\p{Script=Telugu}\p{Script=Thaana}\p{Script=Thai}\p{Script=Tibetan}\p{Script=Yi}]+)/gu;
-const NON_ASCII_RE = /([^\x00-\x7F\xA5\xA3\p{L}]+)/gu;
+// oxlint-disable-next-line no-control-regex
+const NON_ASCII_RE = /([^\u0000-\u007F\u00A5\u00A3\p{L}]+)/gu;
 
 function* check_writing_mistakes(asset) {
   for (const elt of ["title", "desc"]) {
-    if (EMOJI_RE.test(asset[elt])) yield new Issue(Feedback.NO_EMOJI, elt);
-    else if (TYPOGRAPHY_PUNCT.test(asset[elt])) {
-      let corrected = asset[elt].replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+    if (EMOJI_RE.test(asset[elt])) {
+      yield new Issue(Feedback.NO_EMOJI, elt);
+    } else if (TYPOGRAPHY_PUNCT.test(asset[elt])) {
+      const corrected = asset[elt]
+        .replaceAll(/[\u2018\u2019]/g, "'")
+        .replaceAll(/[\u201C\u201D]/g, '"');
       yield new Issue(
         Feedback.SPECIAL_CHARS,
         elt,
         <ul>
           <li>
-            "Smart" quotes are great for typography, but often don't render correctly in emulators.{" "}
+            &quot;Smart&quot; quotes are great for typography, but often don&apos;t render correctly
+            in emulators.{" "}
             <a href="https://en.wikipedia.org/wiki/Quotation_mark#Curved_quotes_within_and_across_applications">
               What are smart quotes?
             </a>
           </li>
           <li>
             <em>
-              <HighlightedFeedback text={asset[elt]} pattern={TYPOGRAPHY_PUNCT} />
+              <HighlightedFeedback pattern={TYPOGRAPHY_PUNCT} text={asset[elt]} />
             </em>{" "}
             &#x27F9; <code>{corrected}</code>
           </li>
         </ul>,
       );
-    } else if (FOREIGN_RE.test(asset[elt]))
+    } else if (FOREIGN_RE.test(asset[elt])) {
       yield new Issue(
         Feedback.FOREIGN_CHARS,
         elt,
         <ul>
           <li>
             <em>
-              <HighlightedFeedback text={asset[elt]} pattern={FOREIGN_RE} />
+              <HighlightedFeedback pattern={FOREIGN_RE} text={asset[elt]} />
             </em>
           </li>
           <li>
@@ -1708,36 +1916,42 @@ function* check_writing_mistakes(asset) {
           </li>
         </ul>,
       );
-    else if (NON_ASCII_RE.test(asset[elt]))
+    } else if (NON_ASCII_RE.test(asset[elt])) {
       yield new Issue(
         Feedback.SPECIAL_CHARS,
         elt,
         <ul>
           <li>
             <em>
-              <HighlightedFeedback text={asset[elt]} pattern={NON_ASCII_RE} />
+              <HighlightedFeedback pattern={NON_ASCII_RE} text={asset[elt]} />
             </em>
           </li>
         </ul>,
       );
+    }
   }
 }
 
 function* check_brackets(asset) {
-  if (asset.desc.trim().match(/.[\{\[\(](.+)[\}\]\)]/))
+  if (asset.desc.trim().match(/.[{[(](.+)[}\])]/)) {
     yield new Issue(Feedback.DESC_BRACKETS, "desc");
+  }
 }
 
 function* check_notes_bad_regions(notes) {
   const regions = current.set?.console?.regions || [];
   let ri = 0;
-  for (let note of notes) {
-    while (ri < regions.length && note.addr > regions[ri].end) ri++;
-    if (ri >= regions.length) return;
+  for (const note of notes) {
+    while (ri < regions.length && note.addr > regions[ri].end) {
+      ri++;
+    }
+    if (ri >= regions.length) {
+      return;
+    }
 
     const r = regions[ri];
     if (note.addr >= r.start) {
-      let issue = new Issue(
+      const issue = new Issue(
         Feedback.BAD_REGION_NOTE,
         note,
         <ul>
@@ -1788,8 +2002,8 @@ function* check_notes_bad_regions(notes) {
 }
 
 function* check_notes_missing_size(notes) {
-  for (const note of notes)
-    if (note.type == null && note.size == 1)
+  for (const note of notes) {
+    if (note.type == null && note.size === 1) {
       yield new Issue(
         Feedback.NOTE_NO_SIZE,
         note,
@@ -1803,18 +2017,24 @@ function* check_notes_missing_size(notes) {
           </li>
         </ul>,
       );
+    }
+  }
 }
 
 const NUMERIC_RE = /\b(0x)?([0-9a-f]{2,})\b/gi;
 function* check_notes_enum_hex(notes) {
-  for (const note of notes)
+  for (const note of notes) {
     if (note.enum) {
-      let found = [];
-      for (const { literal } of note.enum)
-        for (const m of literal.matchAll(NUMERIC_RE))
-          if (m[2].match(/[a-f]/i) && !m[1]) found.push(literal);
+      const found = [];
+      for (const { literal } of note.enum) {
+        for (const m of literal.matchAll(NUMERIC_RE)) {
+          if (m[2].match(/[a-f]/i) && !m[1]) {
+            found.push(literal);
+          }
+        }
+      }
 
-      if (found.length > 0)
+      if (found.length > 0) {
         yield new Issue(
           Feedback.NOTE_ENUM_HEX,
           note,
@@ -1830,23 +2050,28 @@ function* check_notes_enum_hex(notes) {
               Found potential hex values:{" "}
               {found.map((x, i) => (
                 <Fragment key={i}>
-                  {i == 0 ? "" : ", "} <code>{x}</code>
+                  {i === 0 ? "" : ", "} <code>{x}</code>
                 </Fragment>
               ))}
             </li>
           </ul>,
         );
+      }
     }
+  }
 }
 
 function* check_notes_enum_size_mismatch(notes) {
-  for (const note of notes)
+  for (const note of notes) {
     if (note.enum && note.type) {
-      let found = [];
-      for (const { literal, value } of note.enum)
-        if (value > note.type.maxvalue) found.push(literal);
+      const found = [];
+      for (const { literal, value } of note.enum) {
+        if (value > note.type.maxvalue) {
+          found.push(literal);
+        }
+      }
 
-      if (found.length > 0)
+      if (found.length > 0) {
         yield new Issue(
           Feedback.NOTE_ENUM_TOO_LARGE,
           note,
@@ -1866,22 +2091,30 @@ function* check_notes_enum_size_mismatch(notes) {
               The following enumerated values are too large for this code note:{" "}
               {found.map((x, i) => (
                 <Fragment key={i}>
-                  {i == 0 ? "" : ", "} <code>{x}</code>
+                  {i === 0 ? "" : ", "} <code>{x}</code>
                 </Fragment>
               ))}
             </li>
           </ul>,
         );
+      }
     }
+  }
 }
 
 function* validate_condition_values(logic, context) {
-  let memTypes = new Set([ReqType.MEM, ReqType.DELTA, ReqType.PRIOR, ReqType.BCD, ReqType.INVERT]);
+  const memTypes = new Set([
+    ReqType.MEM,
+    ReqType.DELTA,
+    ReqType.PRIOR,
+    ReqType.BCD,
+    ReqType.INVERT,
+  ]);
 
-  for (let group of logic.groups) {
+  for (const group of logic.groups) {
     let hasAccumulator = false;
 
-    for (let req of group) {
+    for (const req of group) {
       // If this requirement is an accumulator, mark the chain as active
       if (req.flag && ["AddSource", "SubSource"].includes(req.flag.name)) {
         hasAccumulator = true;
@@ -1891,7 +2124,7 @@ function* validate_condition_values(logic, context) {
         // Only perform the limit check if we are NOT at the end of an accumulator chain
         if (!hasAccumulator) {
           if (memTypes.has(req.lhs.type) && req.rhs.type === ReqType.VALUE) {
-            let limit = req.lhs.maxValue();
+            const limit = req.lhs.maxValue();
             if (limit !== null && limit !== Number.POSITIVE_INFINITY && req.rhs.value > limit) {
               yield new Issue(
                 Feedback.RP_LIMIT_EXCEEDED,
@@ -1906,7 +2139,7 @@ function* validate_condition_values(logic, context) {
               );
             }
           } else if (memTypes.has(req.rhs.type) && req.lhs.type === ReqType.VALUE) {
-            let limit = req.rhs.maxValue();
+            const limit = req.rhs.maxValue();
             if (limit !== null && limit !== Number.POSITIVE_INFINITY && req.lhs.value > limit) {
               yield new Issue(
                 Feedback.RP_LIMIT_EXCEEDED,
@@ -1933,24 +2166,30 @@ function* validate_condition_values(logic, context) {
 }
 
 function* validate_macro_logic(part, ds) {
-  let logic = part.logic;
-  if (!logic) return;
+  const logic = part.logic;
+  if (!logic) {
+    return;
+  }
 
   yield* validate_condition_values(logic, `macro '{${part.text}}'`);
 
-  let allSingletons = [];
-  let conditionalLines = [];
+  const allSingletons = [];
+  const conditionalLines = [];
   let totalValueProviders = 0;
 
-  for (let group of logic.groups) {
+  for (const group of logic.groups) {
     let groupValueProviders = 0;
     let isGroupChain = false;
 
-    for (let req of group) {
-      if (req.flag && ["AddAddress", "AddSource", "SubSource", "Remember"].includes(req.flag.name))
+    for (const req of group) {
+      if (
+        req.flag &&
+        ["AddAddress", "AddSource", "SubSource", "Remember"].includes(req.flag.name)
+      ) {
         isGroupChain = true;
+      }
 
-      let isCmp = ["=", "!=", "<", "<=", ">", ">="].includes(req.op);
+      const isCmp = ["=", "!=", "<", "<=", ">", ">="].includes(req.op);
       if (isCmp) {
         conditionalLines.push(req);
         if (req.flag && (req.flag.name === "Measured" || req.flag.name === "Measured%")) {
@@ -1988,7 +2227,7 @@ function* validate_macro_logic(part, ds) {
 
     // Validation 1: Per-group Measured limit
     if (groupValueProviders > 1) {
-      let issue = new Issue(
+      const issue = new Issue(
         Feedback.RP_MACRO_SYNTAX_ERROR,
         ds,
         <ul>
@@ -2004,7 +2243,7 @@ function* validate_macro_logic(part, ds) {
 
     // Validation 2: Per-group chain endpoint check
     if (isGroupChain) {
-      let lastReq = group.length > 0 ? group[group.length - 1] : null;
+      const lastReq = group.length > 0 ? group.at(-1) : null;
       if (
         lastReq &&
         (!lastReq.flag || (lastReq.flag.name !== "Measured" && lastReq.flag.name !== "Measured%"))
@@ -2025,7 +2264,7 @@ function* validate_macro_logic(part, ds) {
 
   // Validation 3: Conditional macros must provide a value
   if (conditionalLines.length > 0 && totalValueProviders === 0) {
-    let issue = new Issue(
+    const issue = new Issue(
       Feedback.RP_MACRO_SYNTAX_ERROR,
       ds,
       <ul>
@@ -2041,16 +2280,19 @@ function* validate_macro_logic(part, ds) {
 
   // Validation 4: If returning a Measured value, all non-chain lines MUST be conditions
   if (totalValueProviders > 0) {
-    for (let group of logic.groups) {
-      for (let req of group) {
-        if (req.flag && (req.flag.name === "Measured" || req.flag.name === "Measured%")) continue;
+    for (const group of logic.groups) {
+      for (const req of group) {
+        if (req.flag && (req.flag.name === "Measured" || req.flag.name === "Measured%")) {
+          continue;
+        }
         if (
           req.flag &&
           ["AddAddress", "AddSource", "SubSource", "Remember"].includes(req.flag.name)
-        )
+        ) {
           continue;
+        }
 
-        let isCmp = ["=", "!=", "<", "<=", ">", ">="].includes(req.op);
+        const isCmp = ["=", "!=", "<", "<=", ">", ">="].includes(req.op);
         if (!isCmp) {
           yield new Issue(
             Feedback.RP_MACRO_SYNTAX_ERROR,
@@ -2069,18 +2311,18 @@ function* validate_macro_logic(part, ds) {
 
   // Validation 5: Multiple raw addresses without comparisons/Measured flags
   if (allSingletons.length > 1) {
-    let trueEndpoints = allSingletons.filter(
+    const trueEndpoints = allSingletons.filter(
       (c) => !c.flag || !["AddAddress", "AddSource", "SubSource", "Remember"].includes(c.flag.name),
     );
     if (trueEndpoints.length === 0 && allSingletons.length > 0) {
-      trueEndpoints.push(allSingletons[allSingletons.length - 1]);
+      trueEndpoints.push(allSingletons.at(-1));
     }
     if (trueEndpoints.length > 1) {
-      let hasMeasured = trueEndpoints.some(
+      const hasMeasured = trueEndpoints.some(
         (c) => c.flag && (c.flag.name === "Measured" || c.flag.name === "Measured%"),
       );
       if (!hasMeasured) {
-        let issue = new Issue(
+        const issue = new Issue(
           Feedback.RP_MACRO_SYNTAX_ERROR,
           ds,
           <ul>
@@ -2118,13 +2360,13 @@ function* check_rp_lookups(rp) {
     "UnicodeChar",
   ]);
 
-  let usedMacros = new Set();
+  const usedMacros = new Set();
   rp.displayStrings.forEach((ds) =>
     ds.parts.filter((p) => p.isMacro).forEach((p) => usedMacros.add(p.text)),
   );
 
   for (let i = 0; i < rp.scriptLookups.length; i++) {
-    let lookup = rp.scriptLookups[i];
+    const lookup = rp.scriptLookups[i];
 
     if (!lookup.name || lookup.name.includes(" ")) {
       yield new Issue(
@@ -2149,18 +2391,18 @@ function* check_rp_lookups(rp) {
       );
     }
 
-    let caseCollisions = rp.scriptLookups.filter(
+    const caseCollisions = rp.scriptLookups.filter(
       (x) =>
         x !== lookup &&
         x.name.toLowerCase() === lookup.name.toLowerCase() &&
         x.name !== lookup.name,
     );
     if (caseCollisions.length > 0 && caseCollisions.every((x) => lookup.name < x)) {
-      let conflictList = (
+      const conflictList = (
         <Fragment>
           {caseCollisions.map((x, i) => (
             <Fragment key={i}>
-              {i == 0 ? "" : ", "} <code>{x}</code>
+              {i === 0 ? "" : ", "} <code>{x}</code>
             </Fragment>
           ))}
         </Fragment>
@@ -2177,13 +2419,13 @@ function* check_rp_lookups(rp) {
     }
 
     for (let a = 0; a < lookup.entries.length; a++) {
-      let entryA = lookup.entries[a];
-      let startA = entryA.keyValue;
-      let endA = entryA.keyValueEnd !== null ? entryA.keyValueEnd : startA;
+      const entryA = lookup.entries[a];
+      const startA = entryA.keyValue;
+      const endA = entryA.keyValueEnd !== null ? entryA.keyValueEnd : startA;
       for (let b = a + 1; b < lookup.entries.length; b++) {
-        let entryB = lookup.entries[b];
-        let startB = entryB.keyValue;
-        let endB = entryB.keyValueEnd !== null ? entryB.keyValueEnd : startB;
+        const entryB = lookup.entries[b];
+        const startB = entryB.keyValue;
+        const endB = entryB.keyValueEnd !== null ? entryB.keyValueEnd : startB;
         if (startA <= endB && endA >= startB) {
           yield new Issue(
             Feedback.RP_LOOKUP_OVERLAP,
@@ -2259,7 +2501,7 @@ function* check_rp_display_strings(rp) {
   ]);
 
   for (let i = 0; i < rp.displayStrings.length; i++) {
-    let ds = rp.displayStrings[i];
+    const ds = rp.displayStrings[i];
 
     if (!ds.isDefault) {
       if (!ds.conditionStr || ds.conditionStr.trim() === "") {
@@ -2273,12 +2515,12 @@ function* check_rp_display_strings(rp) {
       } else if (ds.condition) {
         yield* validate_condition_values(ds.condition, "the display condition");
 
-        let warningFlags = new Set(["Measured", "Measured%", "MeasuredIf", "Trigger"]);
-        let arithmeticFlags = new Set(["AddAddress", "AddSource", "SubSource", "Remember"]);
-        let cmpOps = new Set(["=", "!=", "<", "<=", ">", ">="]);
+        const warningFlags = new Set(["Measured", "Measured%", "MeasuredIf", "Trigger"]);
+        const arithmeticFlags = new Set(["AddAddress", "AddSource", "SubSource", "Remember"]);
+        const cmpOps = new Set(["=", "!=", "<", "<=", ">", ">="]);
 
-        for (let group of ds.condition.groups) {
-          for (let req of group) {
+        for (const group of ds.condition.groups) {
+          for (const req of group) {
             if (req.flag && warningFlags.has(req.flag.name)) {
               yield new Issue(
                 Feedback.RP_CONDITION_UNNECESSARY_FLAG,
@@ -2308,10 +2550,10 @@ function* check_rp_display_strings(rp) {
       }
     }
 
-    for (let part of ds.parts.filter((p) => p.isMacro)) {
+    for (const part of ds.parts.filter((p) => p.isMacro)) {
       if (builtInMacros.has(part.text)) {
         if (!part.parameter || part.parameter.trim() === "") {
-          let issue = new Issue(
+          const issue = new Issue(
             Feedback.RP_MACRO_EMPTY,
             ds,
             <ul>
@@ -2328,13 +2570,13 @@ function* check_rp_display_strings(rp) {
         continue;
       }
 
-      let exactMatch = rp.scriptLookups.some((x) => x.name === part.text);
+      const exactMatch = rp.scriptLookups.some((x) => x.name === part.text);
       if (!exactMatch) {
         let suggestion = <Fragment></Fragment>;
-        let caseMatch = rp.scriptLookups.find(
+        const caseMatch = rp.scriptLookups.find(
           (x) => x.name.toLowerCase() === part.text.toLowerCase(),
         );
-        if (caseMatch)
+        if (caseMatch) {
           suggestion = (
             <ul>
               <li>
@@ -2345,7 +2587,9 @@ function* check_rp_display_strings(rp) {
               </li>
             </ul>
           );
-        let issue = new Issue(
+        }
+        // oxlint-disable-next-line no-unused-vars
+        const issue = new Issue(
           Feedback.RP_MACRO_INVALID_REFERENCE,
           ds,
           <ul>
@@ -2359,7 +2603,7 @@ function* check_rp_display_strings(rp) {
       }
 
       if (!part.parameter || part.parameter.trim() === "") {
-        let issue = new Issue(
+        const issue = new Issue(
           Feedback.RP_MACRO_EMPTY,
           ds,
           <ul>
@@ -2379,15 +2623,17 @@ function* check_rp_display_strings(rp) {
 
 function* check_rp_dynamic(rp) {
   if (!rp.displayStrings.some((x) => !x.isDefault)) {
-    if (!rp.displayStrings.some((ds) => ds.parts.some((p) => p.isMacro)))
+    if (!rp.displayStrings.some((ds) => ds.parts.some((p) => p.isMacro))) {
       yield new Issue(Feedback.NO_DYNAMIC_RP, null);
-    else yield new Issue(Feedback.NO_CONDITIONAL_DISPLAY, null);
+    } else {
+      yield new Issue(Feedback.NO_CONDITIONAL_DISPLAY, null);
+    }
   }
 }
 
 function* check_rp_default(rp) {
-  let defaults = rp.displayStrings.filter((x) => x.isDefault);
-  if (defaults.length == 0) {
+  const defaults = rp.displayStrings.filter((x) => x.isDefault);
+  if (defaults.length === 0) {
     yield new Issue(Feedback.NO_DEFAULT_RP, null);
   } else if (defaults.length > 1) {
     yield new Issue(Feedback.MULTIPLE_DEFAULT_RP, null);
@@ -2407,92 +2653,103 @@ function* check_rp_default(rp) {
   }
 }
 
-function* check_rp_notes(rp) {
-  function* get_rp_notes_issues(logic, where) {
-    for (const [gi, g] of logic.groups.entries()) {
-      let prev_addaddress = false;
-      for (const [ri, req] of g.entries()) {
-        let lastreport = null;
-        for (const operand of [req.lhs, req.rhs]) {
-          if (!operand || !operand.type || !operand.type.addr) continue;
-          const note = current.notes.get(operand.value);
+function* get_rp_notes_issues(logic, where) {
+  for (const g of logic.groups) {
+    let prev_addaddress = false;
+    for (const req of g) {
+      let lastreport = null;
+      for (const operand of [req.lhs, req.rhs]) {
+        if (!operand || !operand.type || !operand.type.addr) {
+          continue;
+        }
+        const note = current.notes.get(operand.value);
 
-          if (!prev_addaddress && !note) {
-            if (lastreport == operand.value) continue;
+        if (!prev_addaddress && !note) {
+          if (lastreport === operand.value) {
+            continue;
+          }
+          yield new Issue(
+            Feedback.MISSING_NOTE_RP,
+            null,
+            <ul>
+              <li>
+                Missing note for {where}: <code>{toDisplayHex(operand.value)}</code>
+              </li>
+            </ul>,
+          );
+          lastreport = operand.value;
+        }
+
+        if (!prev_addaddress && note) {
+          // if the note size info is unknown, give up I guess
+          if (
+            note.type &&
+            operand.size &&
+            !PartialAccess.has(operand.size) &&
+            operand.size !== note.type
+          ) {
             yield new Issue(
-              Feedback.MISSING_NOTE_RP,
-              null,
+              Feedback.TYPE_MISMATCH,
+              req,
               <ul>
                 <li>
-                  Missing note for {where}: <code>{toDisplayHex(operand.value)}</code>
+                  Accessing <code>{toDisplayHex(operand.value)}</code> in {where} as{" "}
+                  <code>{operand.size.name}</code>
                 </li>
-              </ul>,
-            );
-            lastreport = operand.value;
-          }
-
-          if (!prev_addaddress && note) {
-            // if the note size info is unknown, give up I guess
-            if (
-              note.type &&
-              operand.size &&
-              !PartialAccess.has(operand.size) &&
-              operand.size != note.type
-            )
-              yield new Issue(
-                Feedback.TYPE_MISMATCH,
-                req,
+                <li>
+                  Matching code note at <code>{toDisplayHex(note.addr)}</code> is marked as{" "}
+                  <code>{note.type.name}</code>
+                </li>
                 <ul>
                   <li>
-                    Accessing <code>{toDisplayHex(operand.value)}</code> in {where} as{" "}
-                    <code>{operand.size.name}</code>
+                    Correct accessor should be:{" "}
+                    <code>
+                      {note.type.prefix}
+                      {note.addr.toString(16).padStart(8, "0")}
+                    </code>
                   </li>
-                  <li>
-                    Matching code note at <code>{toDisplayHex(note.addr)}</code> is marked as{" "}
-                    <code>{note.type.name}</code>
-                  </li>
-                  <ul>
-                    <li>
-                      Correct accessor should be:{" "}
-                      <code>
-                        {note.type.prefix}
-                        {note.addr.toString(16).padStart(8, "0")}
-                      </code>
-                    </li>
-                  </ul>
-                </ul>,
-              );
+                </ul>
+              </ul>,
+            );
           }
         }
-        prev_addaddress = req.flag == ReqFlag.ADDADDRESS;
       }
+      prev_addaddress = req.flag === ReqFlag.ADDADDRESS;
     }
   }
-
+}
+function* check_rp_notes(rp) {
   for (const [di, d] of rp.display.entries()) {
-    if (d.condition != null)
+    if (d.condition != null) {
       yield* get_rp_notes_issues(d.condition, <>condition of display #{di + 1}</>);
-    for (const [li, look] of d.lookups.entries())
+    }
+    for (const look of d.lookups) {
       yield* get_rp_notes_issues(
         look.calc,
         <>
           <code>{look.name}</code> lookup of display #{di + 1}
         </>,
       );
+    }
   }
 }
 
+// oxlint-disable-next-line no-unused-vars
 function* check_source_mod_measured(logic) {
-  if (!logic.value) return;
-  for (const group of logic.groups)
-    for (const [ri, req] of group.entries())
-      if (req.flag == ReqFlag.MEASURED && req.isModifyingOperator()) {
-        let reqclone = req.clone();
+  if (!logic.value) {
+    return;
+  }
+  for (const group of logic.groups) {
+    for (const [ri, req] of group.entries()) {
+      if (req.flag === ReqFlag.MEASURED && req.isModifyingOperator()) {
+        const reqclone = req.clone();
         reqclone.flag = ReqFlag.ADDSOURCE;
         let fixed = reqclone.toMarkdown() + "\n" + Requirement.fromString("M:0").toMarkdown();
 
         for (let i = ri - 1; i >= 0; i--) {
-          if (group[i].isTerminating()) break;
+          if (group[i].isTerminating()) {
+            break;
+          }
           fixed = group[i].toMarkdown() + "\n" + fixed;
         }
 
@@ -2510,17 +2767,20 @@ function* check_source_mod_measured(logic) {
           </ul>,
         );
       }
+    }
+  }
 }
 
 function* check_progression_typing(set) {
   // reflect an issue if achievement typing hasn't been added
   if (
-    !set.getAchievements().some((ach) => ach.achtype == "win_condition") &&
-    !set.getAchievements().some((ach) => ach.achtype == "progression")
-  )
+    !set.getAchievements().some((ach) => ach.achtype === "win_condition") &&
+    !set.getAchievements().some((ach) => ach.achtype === "progression")
+  ) {
     yield new Issue(Feedback.NO_TYPING, null);
-  else if (!set.getAchievements().some((ach) => ach.achtype == "progression"))
+  } else if (!set.getAchievements().some((ach) => ach.achtype === "progression")) {
     yield new Issue(Feedback.NO_PROGRESSION, null);
+  }
 }
 
 function* check_duplicate_text(set) {
@@ -2529,12 +2789,14 @@ function* check_duplicate_text(set) {
   // compare achievement titles
   groups = new Map();
   for (const asset of set.getAchievements()) {
-    if (!groups.has(asset.title)) groups.set(asset.title, []);
+    if (!groups.has(asset.title)) {
+      groups.set(asset.title, []);
+    }
     groups.get(asset.title).push(asset);
   }
 
-  for (let [title, group] of groups.entries())
-    if (group.length > 1)
+  for (const [title, group] of groups.entries()) {
+    if (group.length > 1) {
       yield new Issue(
         Feedback.DUPLICATE_TITLES,
         null,
@@ -2544,16 +2806,20 @@ function* check_duplicate_text(set) {
           </li>
         </ul>,
       );
+    }
+  }
 
   // compare achievement descriptions
   groups = new Map();
   for (const asset of set.getAchievements()) {
-    if (!groups.has(asset.desc)) groups.set(asset.desc, []);
+    if (!groups.has(asset.desc)) {
+      groups.set(asset.desc, []);
+    }
     groups.get(asset.desc).push(asset);
   }
 
-  for (let [desc, group] of groups.entries())
-    if (group.length > 1)
+  for (const group of groups.values()) {
+    if (group.length > 1) {
       yield new Issue(
         Feedback.DUPLICATE_DESCRIPTIONS,
         null,
@@ -2566,16 +2832,20 @@ function* check_duplicate_text(set) {
           </ul>
         </ul>,
       );
+    }
+  }
 
   // compare achievement titles
   groups = new Map();
   for (const asset of set.getLeaderboards()) {
-    if (!groups.has(asset.title)) groups.set(asset.title, []);
+    if (!groups.has(asset.title)) {
+      groups.set(asset.title, []);
+    }
     groups.get(asset.title).push(asset);
   }
 
-  for (let [title, group] of groups.entries())
-    if (group.length > 1)
+  for (const [title, group] of groups.entries()) {
+    if (group.length > 1) {
       yield new Issue(
         Feedback.DUPLICATE_TITLES,
         null,
@@ -2585,6 +2855,8 @@ function* check_duplicate_text(set) {
           </li>
         </ul>,
       );
+    }
+  }
 }
 
 const BASIC_LOGIC_TESTS = [
@@ -2635,41 +2907,48 @@ const LEADERBOARD_TESTS = {
 };
 
 function get_leaderboard_issues(lb) {
-  let res = new IssueGroup("Logic & Design");
-  for (let block of ["START", "CANCEL", "SUBMIT", "VALUE"]) {
-    const tag = block.substring(0, 3);
-    for (const test of LEADERBOARD_TESTS[tag])
-      for (const issue of test(lb.components[tag])) res.add(issue);
+  const res = new IssueGroup("Logic & Design");
+  for (const block of ["START", "CANCEL", "SUBMIT", "VALUE"]) {
+    const tag = block.slice(0, 3);
+    for (const test of LEADERBOARD_TESTS[tag]) {
+      for (const issue of test(lb.components[tag])) {
+        res.add(issue);
+      }
+    }
   }
   return res;
 }
 
 export function assess_achievement(ach) {
-  let res = new Assessment();
+  const res = new Assessment();
 
   res.stats = generate_logic_stats(ach.logic);
 
-  res.issues.push(IssueGroup.fromTests("Logic & Design", LOGIC_TESTS, ach.logic));
-  res.issues.push(IssueGroup.fromTests("Presentation & Writing", PRESENTATION_TESTS, ach));
+  res.issues.push(
+    IssueGroup.fromTests("Logic & Design", LOGIC_TESTS, ach.logic),
+    IssueGroup.fromTests("Presentation & Writing", PRESENTATION_TESTS, ach),
+  );
 
   // attach feedback to the asset
   return (ach.feedback = res);
 }
 
 export function assess_leaderboard(lb) {
-  let res = new Assessment();
+  const res = new Assessment();
 
   res.stats = generate_leaderboard_stats(lb);
 
-  res.issues.push(get_leaderboard_issues(lb));
-  res.issues.push(IssueGroup.fromTests("Presentation & Writing", PRESENTATION_TESTS, lb));
+  res.issues.push(
+    get_leaderboard_issues(lb),
+    IssueGroup.fromTests("Presentation & Writing", PRESENTATION_TESTS, lb),
+  );
 
   // attach feedback to the asset
   return (lb.feedback = res);
 }
 
 export function assess_code_notes(notes) {
-  let res = new Assessment();
+  const res = new Assessment();
 
   res.stats = generate_code_note_stats(notes);
 
@@ -2680,7 +2959,7 @@ export function assess_code_notes(notes) {
 }
 
 export function assess_rich_presence(rp) {
-  let res = new Assessment();
+  const res = new Assessment();
   rp ??= new RichPresence(); // if there is no RP, just use a placeholder
 
   res.stats = generate_rich_presence_stats(rp);
@@ -2693,7 +2972,7 @@ export function assess_rich_presence(rp) {
 }
 
 export function assess_set(set) {
-  let res = new Assessment();
+  const res = new Assessment();
 
   res.stats = generate_set_stats(set);
 
