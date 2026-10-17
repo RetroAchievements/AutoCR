@@ -1942,6 +1942,10 @@ function* check_notes_bad_regions(notes) {
   const regions = current.set?.console?.regions || [];
   let ri = 0;
   for (const note of notes) {
+    if (note.isGeneralGameNotesOnly()) {
+      continue;
+    }
+
     while (ri < regions.length && note.addr > regions[ri].end) {
       ri++;
     }
