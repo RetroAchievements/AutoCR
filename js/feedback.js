@@ -1224,7 +1224,7 @@ function* check_deltas(logic) {
     });
 
     // We only need one delta in core that is matched by a mem in all alts
-    if (mem_groups.every(Boolean)) {
+    if (mem_groups.length > 0 && mem_groups.every(Boolean)) {
       return;
     }
   }
