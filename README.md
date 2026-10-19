@@ -69,12 +69,15 @@ http://localhost:8080?middleware=http://localhost:3000
 
 ## Local Checks
 
-_test/_ exists, but for now, all testing is local fixtures. [oxfmt](https://oxc.rs/docs/guide/usage/formatter) is used for formatting, and [oxlint](https://oxc.rs/docs/guide/usage/linter) is used for linting.
+[oxfmt](https://oxc.rs/docs/guide/usage/formatter) handles formatting and [oxlint](https://oxc.rs/docs/guide/usage/linter) handles linting. [bun test](https://bun.sh/docs/test) powers AutoCR's test suite. Test files live beside the code they cover. The fixtures those tests load live in _test/fixtures/_.
 
 ```shell
 bun run format    # autoformat all files
 bun run lint:fix  # apply linting autofixes
+bun run test      # run every test file with isolation enabled
 ```
+
+`bun run test` isolates each test file, so module state such as `current` in _js/state.js_ cannot leak from one file into the next.
 
 ## Deployment
 

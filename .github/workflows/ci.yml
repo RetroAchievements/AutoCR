@@ -30,3 +30,6 @@ jobs:
 
       - name: oxlint
         run: bun run lint
+
+      - name: bun test
+        run: bun run test
