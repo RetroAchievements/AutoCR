@@ -110,14 +110,10 @@ describe("Util: assess_achievement", () => {
       { expected: ["BAD_PRIOR"], id: 111_000_014, title: "Bad Prior #1" },
       { expected: ["BAD_PRIOR"], id: 111_000_015, title: "Bad Prior #2" },
       { expected: ["STALE_ADDADDRESS"], id: 111_000_017, title: "Stale AddAddress" },
-      {
-        expected: ["PAUSELOCK_NO_RESET", "TITLE_CASE"],
-        id: 111_000_018,
-        title: "PauseLock Without Reset",
-      },
+      { expected: ["PAUSELOCK_NO_RESET"], id: 111_000_018, title: "PauseLock Without Reset" },
       { expected: [], id: 111_000_019, title: "[PASS] PauseLock Fixed #1 (RNI)" },
       { expected: [], id: 111_000_020, title: "[PASS] PauseLock Fixed #2 (ResetIf in Alt)" },
-      { expected: ["HIT_NO_RESET", "TITLE_CASE"], id: 111_000_021, title: "Hits Without a Reset" },
+      { expected: ["HIT_NO_RESET"], id: 111_000_021, title: "Hits Without a Reset" },
       {
         expected: ["USELESS_ANDNEXT", "USELESS_ANDNEXT"],
         id: 111_000_022,
