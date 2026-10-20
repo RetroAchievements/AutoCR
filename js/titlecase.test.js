@@ -78,6 +78,13 @@ const CASES = {
   "tells the letter A from the article": [
     ["Sonata in a Major", "Sonata in A Major"],
     ["Q&a Time", "Q&A Time"],
+    ["Plan a", "Plan A"],
+    ["Route a: Railway Industry", "Route A: Railway Industry"],
+  ],
+  "leaves an ambiguous letter A or article as written": [
+    ["Class A Pirate", "Class A Pirate"],
+    ["Stage a Comeback", "Stage a Comeback"],
+    ["Block a Ball", "Block a Ball"],
   ],
 };
 

@@ -328,7 +328,8 @@ function decide_till_or_thru(title, i, prev, next) {
 // prev and next are the neighboring words' lookup keys, or null at a clause boundary.
 const SPECIAL_RULES = new Map(
   Object.entries({
-    // the article ("a Rotten Egg") or the letter ("Plan A", "Sonata in A Major", "Q&A")
+    // the article ("a Rotten Egg") or the letter ("Plan A", "Sonata in A Major", "Q&A");
+    // after "class", "stage", ... both readings work ("Class A Pirate", "Stage a Comeback"), so it is left as written
     a(title, i, prev, next) {
       if (title.jointBefore(i).includes("&") || title.jointBefore(i + 1).includes("&")) {
         return capital(AS_LETTER);
@@ -341,8 +342,11 @@ const SPECIAL_RULES = new Map(
       if (hyphenAfter || next === null || !title.plainAfter(i)) {
         return capital(AS_LETTER);
       }
-      if (prev !== null && (LETTER_A_BEFORE.has(prev) || ARTICLES.has(prev))) {
+      if (prev !== null && ARTICLES.has(prev)) {
         return capital(AS_LETTER);
+      }
+      if (prev !== null && LETTER_A_BEFORE.has(prev)) {
+        return keep('could be the letter A or the article "a", left unchanged');
       }
       if (prev === "in" && LETTER_A_AFTER.has(next)) {
         return capital(AS_LETTER);
