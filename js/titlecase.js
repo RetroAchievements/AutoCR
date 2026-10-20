@@ -22,19 +22,41 @@ import {
   THAN_CONJUNCTION_NEXT,
 } from "./titlecase-words";
 
-// Words may contain inner periods ("L.A."); trailing periods stay in the joint to tell "." from "...".
+// A word: letters, digits and apostrophes ("Don't", "'Til", "2nd"), plus inner periods ("L.A", "U.S.A").
+// A trailing period is left in the joint, so "." and "..." can be told apart.
 const WORD_RE = /[\p{L}\p{N}'’]+(?:\.(?=[\p{L}\p{N}])[\p{L}\p{N}'’]+)*/gu;
-// Subtitle/sentence boundaries. Commas, dashes and ellipses are none ("Powered Up - the Battery Farm").
-const CLAUSE_START_RE = /[!?:;)\]}/|]|(?<![.])\.(?![.])|["“‘']$/;
-const CLAUSE_END_RE = /[!?:;()[\]{}/|]|(?<![.])\.(?![.])|^["”’']/;
-const TRAILING_DASH_RE = /[-‐‑‒–—―]\s*$/;
-const LEADING_ELLIPSIS_RE = /(?:\.\.\.|…)\s*$/;
-const HYPHEN_RE = /^[-‐‑]$/;
-const WHITESPACE_RE = /^\s+$/;
-const OPENING_QUOTE_RE = /^\s+["“‘([]+$/;
-const NON_LATIN_RE = /[\p{L}&&[^\p{Script=Latin}]]/v;
-const INITIALISM_RE = /^(?:\p{L}\.)*\p{L}$/u;
 
+// Joint before a word that starts a new clause (subtitle or sentence): it contains one of ! ? : ; ) ] } / |,
+// Examples: "Climb Up! And Get…", "Act 1: The Start", "(Bonus) The Trials" , 'Say "Hello"'
+// Commas, dashes and ellipses don't start a clause: "Powered Up - the Battery Farm", "Bridge... of Doom".
+const CLAUSE_START_RE = /[!?:;)\]}/|]|(?<![.])\.(?![.])|["“‘']$/;
+// Joint after a word that ends a clause; same idea, mirrored: "Level Up!", "Pick It Up (Bonus)", '"Up" Is Down'.
+const CLAUSE_END_RE = /[!?:;()[\]{}/|]|(?<![.])\.(?![.])|^["”’']/;
+// Joint ending in a dash: "Done! - the End" does not start a new clause even though it contains "!".
+const TRAILING_DASH_RE = /[-‐‑‒–—―]\s*$/;
+// Joint before the first word ending in an ellipsis: "...of Doom" continues an earlier title, not capitalized.
+const LEADING_ELLIPSIS_RE = /(?:\.\.\.|…)\s*$/;
+// Joint that is a single hyphen, joining a compound: "One-on-One". A spaced " - " is a dash, not a hyphen.
+const HYPHEN_RE = /^[-‐‑]$/;
+// Joint that is only whitespace: the words are directly next to each other ("Turn Off", not "Turn, Off").
+const WHITESPACE_RE = /^\s+$/;
+// Joint of whitespace and opening quotes: 'Sit on "It"'.
+const OPENING_QUOTE_RE = /^\s+["“‘([]+$/;
+
+// A letter from a non-Latin script (Cyrillic, Greek, Japanese, ...): "Привет", "ゼルダ".
+const NON_LATIN_RE = /[\p{L}&&[^\p{Script=Latin}]]/v;
+// Single letters separated by periods: "L.A", "U.S", "J". Used to keep the final period with the word ("L.A.").
+const INITIALISM_RE = /^(?:\p{L}\.)*\p{L}$/u;
+// Clipped words that are always lowercased:
+const CLIPPED_OF_RE = /^o['’]$/i; // o' ("Child o' Mine")
+const CLIPPED_AND_RE = /^(?:['’]n['’]?|n['’])$/i; // 'n', 'n, n' ("Rock 'n' Roll", "Rap n' Roll")
+const CLIPPED_ABOUT_RE = /^['’]bout$/i; // 'bout ("How 'bout Another")
+// Previous word looks like a verb form: "Moving Up", "Moved Up".
+const VERB_FORM_RE = /(?:ing|in'|ed)$/;
+
+// Every rule returns a decision: { cap, reason }.
+//   cap:    true = capitalize, false = lowercase, null = leave the word as written
+//   reason: completes a sentence about the word, shown in the feedback: "On" → "on": seems to be used as a preposition
 const capital = (reason) => ({ cap: true, reason });
 const lower = (reason) => ({ cap: false, reason });
 const keep = (reason) => ({ cap: null, reason });
@@ -43,7 +65,8 @@ const AS_PREPOSITION = "seems to be used as a preposition";
 const AS_LETTER = "is used as a letter (noun)";
 const AS_NOUN_OR_ADJECTIVE = "is used as a noun or adjective";
 
-// Splits a phrase into words and the text between them ("joints").
+// A title is split into words and "joints" (the text between two words) which are used for most regexes.
+// "Sit On It!" → tokens [{joint: "", word: "Sit"}, {joint: " ", word: "On"}, {joint: " ", word: "It"}], lastJoint "!"
 function tokenize(phrase) {
   const tokens = [];
   let last = 0;
@@ -62,6 +85,7 @@ function tokenize(phrase) {
   return { tokens, lastJoint: phrase.slice(last) };
 }
 
+// Normalized form used to look a word up in the word tables: "'Til" → "til", "Vs." → "vs", "Don’t" → "don't"
 function lookup_key(word) {
   const lowered = word.toLowerCase();
   return (
@@ -72,22 +96,26 @@ function lookup_key(word) {
   );
 }
 
+// "'til" → "'Til", "hELLO" → "Hello"
 function capitalize(word) {
   const i = word.search(/\p{L}/u);
   return i < 0 ? word : word.slice(0, i) + word[i].toUpperCase() + word.slice(i + 1).toLowerCase();
 }
 
+// "NES", "CLASSIC" (single letters like "A" don't count)
 function is_all_caps(word) {
   const letters = word.replaceAll(/[^\p{L}]/gu, "");
   return letters.length >= 2 && letters === letters.toUpperCase();
 }
 
+// "iPhone", "McDonald", "PlayStation"
 function has_inner_capital(word) {
   const i = word.search(/\p{L}/u);
   return i >= 0 && /\p{Lu}/u.test(word.slice(i + 1).replaceAll(/[^\p{L}]/gu, ""));
 }
 
-// "stopped" -> stop, "carries" -> carry, "running" -> run
+// Possible base forms of a verb, to look it up in PHRASAL_VERBS. Guesses all candidates rather than being exact:
+// "stopped" → stop, "carries" → carry, "running" → run, "took" → take, "movin'" → move
 function verb_stems(word) {
   const w = word.toLowerCase().replaceAll("’", "'");
   const stems = new Set([w]);
@@ -96,6 +124,7 @@ function verb_stems(word) {
       stems.add(stem);
     }
   };
+  // doubled consonant before the suffix: "stopped", "running"
   const doubled = (suffix) =>
     w.length > suffix.length + 2 && w.at(-suffix.length - 1) === w.at(-suffix.length - 2);
 
@@ -132,7 +161,7 @@ function verb_stems(word) {
   return stems;
 }
 
-// Word i is preceded by joint i.
+// A tokenized title with questions about word i's surroundings. Word i is preceded by joint i (see tokenize).
 class Title {
   constructor(phrase) {
     const { tokens, lastJoint } = tokenize(phrase);
@@ -194,7 +223,8 @@ class Title {
     return i + 1 < this.length && OPENING_QUOTE_RE.test(this.tokens[i + 1].joint);
   }
 
-  // does an object follow? then a particle is a preposition
+  // Does an object follow word i? Then a particle is a preposition ("Sit on It") rather than an adverb
+  // ("Time Went By So Fast", "Better Off Without You").
   followedByObject(i) {
     const next = this.nextKey(i);
     if (next === null) {
@@ -209,7 +239,7 @@ class Title {
     return !(PARTICLES.has(next) && ADVERB_BIASED.has(this.keys[i]));
   }
 
-  // "Turn Off", "Pick It Up"
+  // Is particle i part of a phrasal verb, directly or after a pronoun? "Turn Off the Lights", "Pick It Up"
   precededByPhrasalVerb(i) {
     const particle = this.keys[i];
     const verbs = PHRASAL_VERBS.get(particle);
@@ -234,6 +264,8 @@ class Title {
   }
 }
 
+// up, out, off, on, in, by, over, down: a preposition (lowercase) takes an object, an adverb (capitalized) doesn't.
+// "Sit on It", "Turn Off the Lights", "Come out of the Shadows", "Moving Up in the World"
 function decide_particle(title, i) {
   const particle = title.keys[i];
   const prev = title.prevKey(i);
@@ -249,7 +281,7 @@ function decide_particle(title, i) {
   if (particle === "by" && ["now", "then", "far"].includes(next)) {
     return lower('is part of a compound preposition ("by now")');
   }
-  if (ADVERB_BIASED.has(particle) && prev !== null && plainBefore && /(?:ing|in'|ed)$/.test(prev)) {
+  if (ADVERB_BIASED.has(particle) && prev !== null && plainBefore && VERB_FORM_RE.test(prev)) {
     return capital("seems to be used as an adverb (after a verb form)");
   }
   if (!title.followedByObject(i)) {
@@ -258,8 +290,45 @@ function decide_particle(title, i) {
   return lower(AS_PREPOSITION);
 }
 
+// past, plus: a preposition before an object ("Snuck past the Star", "Two plus Two"),
+// a noun or adjective after a determiner ("Ghosts of the Past"), an adverb before a clause boundary ("Rush Past: Bonus").
+function decide_past_or_plus(title, i, prev, next) {
+  if (prev !== null && title.plainBefore(i) && NOUN_DETERMINERS.has(prev)) {
+    return capital(AS_NOUN_OR_ADJECTIVE);
+  }
+  if (next === null && !title.quoteAfter(i)) {
+    return capital("is used as an adverb or noun");
+  }
+  return lower("is probably used as a preposition");
+}
+
+// near, mid: a preposition before a determiner ("Bonus Hole near the Worm Holes", "mid the Chaos"),
+// a noun or adjective after one ("In the Near Future"), otherwise an adjective or adverb ("Near Miss").
+function decide_near_or_mid(title, i, prev, next) {
+  const personal = ["me", "him", "them", "us", "it", "you"];
+  if (DETERMINERS.has(prev) && !personal.includes(prev)) {
+    return capital(AS_NOUN_OR_ADJECTIVE);
+  }
+  if (DETERMINERS.has(next)) {
+    return lower("is used as a preposition");
+  }
+  return capital("is used as a noun, adjective or adverb");
+}
+
+// till, til, thru (short for "until" / "through"): a conjunction when a clause follows ("Hop 'Til You Drop",
+// "Wait Till I Come"), otherwise a preposition ("Party till Dawn").
+function decide_till_or_thru(title, i, prev, next) {
+  if (SUBJECT_PRONOUNS.has(next) || AUXILIARIES.has(next)) {
+    return capital("is used as a conjunction");
+  }
+  return lower("is used as a preposition");
+}
+
+// Words whose function depends on context, with a rule each: (title, i, prev, next) → decision.
+// prev and next are the neighboring words' lookup keys, or null at a clause boundary.
 const SPECIAL_RULES = new Map(
   Object.entries({
+    // the article ("a Rotten Egg") or the letter ("Plan A", "Sonata in A Major", "Q&A")
     a(title, i, prev, next) {
       if (title.jointBefore(i).includes("&") || title.jointBefore(i + 1).includes("&")) {
         return capital(AS_LETTER);
@@ -280,13 +349,17 @@ const SPECIAL_RULES = new Map(
       }
       return lower("is an article");
     },
+    // always lowercase, only listed for its more precise reason ("Born to Run", "Back to School")
     to: () => lower("is a preposition or part of an infinitive"),
+    // a conjunction before a clause ("Faster Than They Appear"), otherwise a preposition ("Stranger than Fiction")
     than(title, i, prev, next) {
       if (THAN_CONJUNCTION_NEXT.has(next) || (prev === "said" && next === "done")) {
         return capital("is used as a conjunction");
       }
       return lower("is used as a preposition");
     },
+    // a preposition after "it", "smells", ... or before an article ("Bend It like Jordan", "Fly like a Bird"),
+    // otherwise a verb, adjective or conjunction ("I Like Trains", "Party Like It's 2025")
     like(title, i, prev, next) {
       if (prev !== null && title.plainBefore(i) && LIKE_PREPOSITION_AFTER.has(prev)) {
         return lower(AS_PREPOSITION);
@@ -300,41 +373,15 @@ const SPECIAL_RULES = new Map(
     plus: decide_past_or_plus,
     near: decide_near_or_mid,
     mid: decide_near_or_mid,
-    thru: decide_till,
-    til: decide_till,
-    till: decide_till,
+    thru: decide_till_or_thru,
+    til: decide_till_or_thru,
+    till: decide_till_or_thru,
   }),
 );
 
-function decide_past_or_plus(title, i, prev, next) {
-  if (prev !== null && title.plainBefore(i) && NOUN_DETERMINERS.has(prev)) {
-    return capital(AS_NOUN_OR_ADJECTIVE);
-  }
-  if (next === null && !title.quoteAfter(i)) {
-    return capital("is used as an adverb or noun");
-  }
-  return lower("is probably used as a preposition");
-}
-
-function decide_near_or_mid(title, i, prev, next) {
-  const personal = ["me", "him", "them", "us", "it", "you"];
-  if (DETERMINERS.has(prev) && !personal.includes(prev)) {
-    return capital(AS_NOUN_OR_ADJECTIVE);
-  }
-  if (DETERMINERS.has(next)) {
-    return lower("is used as a preposition");
-  }
-  return capital("is used as a noun, adjective or adverb");
-}
-
-function decide_till(title, i, prev, next) {
-  if (SUBJECT_PRONOUNS.has(next) || AUXILIARIES.has(next)) {
-    return capital("is used as a conjunction");
-  }
-  return lower("is used as a preposition");
-}
-
-// cap: true = capitalize, false = lowercase, null = leave alone
+// Decides how word i should be cased and why, returning { cap, reason } (see capital/lower/keep above).
+// The checks run in order and the first match wins: words to leave alone, then first/last word, then the
+// context-dependent words, and finally the fixed Chicago lists.
 function decide(title, i) {
   const word = title.word(i);
   const key = title.keys[i];
@@ -355,13 +402,14 @@ function decide(title, i) {
   if (/\p{N}/u.test(word)) {
     return keep("contains digits, left unchanged");
   }
-  if (/^o['’]$/i.test(word)) {
+  if (CLIPPED_OF_RE.test(word)) {
     return lower('is a diminished form of "of"');
   }
+  // "w/Manager"
   if (key === "w" && i + 1 < title.length && title.jointBefore(i + 1).startsWith("/")) {
     return lower('is an abbreviation of "with"');
   }
-  if (/^(?:['’]n['’]?|n['’])$/i.test(word) || /^['’]bout$/i.test(word)) {
+  if (CLIPPED_AND_RE.test(word) || CLIPPED_ABOUT_RE.test(word)) {
     return lower('is a clipped form of "and" / "about"');
   }
   if (word === "V") {
@@ -375,6 +423,7 @@ function decide(title, i) {
   if (title.endsClause(i) && !title.hyphenAfter(i)) {
     return capital("is the last word of the title or subtitle");
   }
+  // inside a compound: "One-on-One", "Face-to-Face"; at its end: "Follow-Up", "Burning 1-Up"
   if (hyphenBefore && (PARTICLES.has(key) || key === "to" || key === "for")) {
     if (title.hyphenAfter(i) || key === "to" || key === "for") {
       return lower("is a preposition inside a hyphenated compound");
