@@ -359,10 +359,18 @@ const SPECIAL_RULES = new Map(
       return lower("is used as a preposition");
     },
     // a preposition after "it", "smells", ... or before an article ("Bend It like Jordan", "Fly like a Bird"),
+    // a verb after a subject or auxiliary ("I Like a Challenge", "Don't You Like Trains?"),
     // otherwise a verb, adjective or conjunction ("I Like Trains", "Party Like It's 2025")
     like(title, i, prev, next) {
       if (prev !== null && title.plainBefore(i) && LIKE_PREPOSITION_AFTER.has(prev)) {
         return lower(AS_PREPOSITION);
+      }
+      if (
+        prev !== null &&
+        title.plainBefore(i) &&
+        (SUBJECT_PRONOUNS.has(prev) || AUXILIARIES.has(prev))
+      ) {
+        return capital("is used as a verb");
       }
       if (next !== null && title.plainAfter(i) && ARTICLES.has(next)) {
         return lower(AS_PREPOSITION);

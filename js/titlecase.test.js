@@ -28,6 +28,9 @@ const CASES = {
     ["Stranger Than Fiction", "Stranger than Fiction"],
     ["Easier Said Than Done", "Easier Said Than Done"],
     ["Bend It Like Jordan", "Bend It like Jordan"],
+    ["Fly Like a Bird", "Fly like a Bird"],
+    ["I Like a Challenge", "I Like a Challenge"],
+    ["Don't You Like a Bonus?", "Don't You Like a Bonus?"],
     ["Party Like It's 2025", "Party Like It's 2025"],
   ],
   "keeps a particle an adverb after a phrasal verb, also inflected or with a pronoun": [
