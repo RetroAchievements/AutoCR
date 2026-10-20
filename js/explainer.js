@@ -2799,7 +2799,7 @@ export class LogicExplainer {
 
     // 1. Explain Core Group
     if (groups.length > 0 && groups[0].length > 0) {
-      mainText += "## Core Requirements (Must be true):\n";
+      mainText += "## Core Requirements (must be true):\n";
       mainText += LogicExplainer.explainGroupNatural(
         groups[0],
         notesLookup,
@@ -2838,7 +2838,7 @@ export class LogicExplainer {
 
       // 3. Explain Regular Alts
       if (regularAlts.length > 0) {
-        mainText += "## Alternative Requirements (At least one set must be true):\n";
+        mainText += "## Alternative Requirements (at least one group must be true):\n";
         mainText += LogicExplainer.processMergedGroups(
           regularAlts,
           notesLookup,
