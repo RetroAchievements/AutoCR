@@ -30,6 +30,33 @@ const CASES = {
     ["Bend It Like Jordan", "Bend It like Jordan"],
     ["Party Like It's 2025", "Party Like It's 2025"],
   ],
+  "keeps a particle an adverb after a phrasal verb, also inflected or with a pronoun": [
+    ["Zeroed in on the Gold", "Zeroed In on the Gold"],
+    ["Taking out the Trash", "Taking Out the Trash"],
+    ["Have You Tried Turning It off and on Again?", "Have You Tried Turning It Off and On Again?"],
+    ["Moving up in the World", "Moving Up in the World"],
+  ],
+  "knows compound prepositions and the other function-dependent words": [
+    ["Come Out Of The Shadows!", "Come out of the Shadows!"],
+    ["Hope You're an Expert By Now", "Hope You're an Expert by Now"],
+    [
+      "Objects in Mirror Are Faster than They Appear",
+      "Objects in Mirror Are Faster Than They Appear",
+    ],
+    ["Snuck Past the Star", "Snuck past the Star"],
+    ["Bonus Hole Near the Worm Holes", "Bonus Hole near the Worm Holes"],
+    ["Hop 'til you Drop", "Hop 'Til You Drop"],
+    ["A Tail As Old As Me", "A Tail as Old as Me"],
+    ['"P" is for "Perfect"', '"P" Is for "Perfect"'],
+  ],
+  "lowercases clipped forms and keeps abbreviation periods": [
+    ["Sweet Child O' Mine (First Place)", "Sweet Child o' Mine (First Place)"],
+    ["Rap N' Roll IV - Green Dance", "Rap n' Roll IV - Green Dance"],
+    ["How 'Bout Another Ball?", "How 'bout Another Ball?"],
+    ["Single W/Manager vs. W/Manager", "Single w/Manager vs. w/Manager"],
+    ["Shmoe vs. The Volcano - Gate Relay", "Shmoe vs. the Volcano - Gate Relay"],
+    ["Henry V of England", "Henry V of England"],
+  ],
   "applies the rules inside hyphenated compounds": [
     ["One-On-One", "One-on-One"],
     ["Burning 1-Up Mushroom", "Burning 1-Up Mushroom"],
