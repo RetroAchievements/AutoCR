@@ -3,21 +3,18 @@
 import {
   ABBREVIATIONS,
   ADVERB_BIASED,
-  ALWAYS_LOWER,
   ARTICLES,
-  AUXILIARIES,
-  COORDINATORS,
+  CLAUSE_STARTERS,
+  COORDINATING_CONJUNCTIONS,
   DETERMINERS,
   IRREGULAR_VERBS,
   LIKE_PREPOSITION_AFTER,
   NOT_AN_OBJECT,
-  NOUN_DETERMINERS,
   OBJECT_PRONOUNS,
   PARTICLES,
+  PHRASAL_VERB_OBJECTS,
   PHRASAL_VERBS,
   SHORT_PREPOSITIONS,
-  SUBJECT_PRONOUNS,
-  THAN_CONJUNCTION_NEXT,
 } from "./titlecase-words";
 
 // A word: letters, digits and apostrophes ("Don't", "'Til", "2nd"), plus inner periods ("L.A", "U.S.A").
@@ -63,15 +60,15 @@ const AS_PREPOSITION = "seems to be used as a preposition";
 const AS_LETTER = "is used as a letter (noun)";
 const AS_NOUN_OR_ADJECTIVE = "is used as a noun or adjective";
 
-// Words that are always lowercased, with their reason. ALWAYS_LOWER also contains the articles, conjunctions, "as"
-// and "to", so the first group listing a word gives the reason (reversed, so earlier groups overwrite later ones).
+// Words that are always lowercased, with their reason. When a word is in several groups ("for"), the first group
+// gives the reason (reversed, so earlier groups overwrite later ones).
 const LOWERCASE_REASONS = new Map(
   [
     ["is an article", ARTICLES],
-    ["is a coordinating conjunction", ["and", "but", "or", "nor"]],
     ['is "as", which Chicago style always lowercases', ["as"]],
     ["is a preposition or part of an infinitive", ["to"]],
-    ["is a preposition of four letters or fewer", ALWAYS_LOWER],
+    ["is a preposition of four letters or fewer", SHORT_PREPOSITIONS],
+    ["is a coordinating conjunction", COORDINATING_CONJUNCTIONS],
   ]
     .flatMap(([reason, keys]) => [...keys].map((key) => [key, reason]))
     .reverse(),
@@ -248,7 +245,7 @@ class Title {
     if (!this.plainAfter(i)) {
       return false;
     }
-    if (COORDINATORS.has(next) || SHORT_PREPOSITIONS.has(next) || NOT_AN_OBJECT.has(next)) {
+    if (NOT_AN_OBJECT.has(next)) {
       return false;
     }
     return !(PARTICLES.has(next) && ADVERB_BIASED.has(this.keys[i]));
@@ -266,7 +263,7 @@ class Title {
       particle !== "down" &&
       verb >= 0 &&
       !this.startsClause(i) &&
-      OBJECT_PRONOUNS.has(this.keys[verb])
+      PHRASAL_VERB_OBJECTS.has(this.keys[verb])
     ) {
       verb--;
     }
@@ -308,7 +305,7 @@ function decide_particle(title, i) {
 // past, plus: a preposition before an object ("Snuck past the Star", "Two plus Two"),
 // a noun or adjective after a determiner ("Ghosts of the Past"), an adverb before a clause boundary ("Rush Past: Bonus").
 function decide_past_or_plus(title, i, prev, next) {
-  if (prev !== null && title.plainBefore(i) && NOUN_DETERMINERS.has(prev)) {
+  if (prev !== null && title.plainBefore(i) && DETERMINERS.has(prev)) {
     return capital(AS_NOUN_OR_ADJECTIVE);
   }
   if (next === null && !title.quoteAfter(i)) {
@@ -320,11 +317,10 @@ function decide_past_or_plus(title, i, prev, next) {
 // near, mid: a preposition before a determiner ("Bonus Hole near the Worm Holes", "mid the Chaos"),
 // a noun or adjective after one ("In the Near Future"), otherwise an adjective or adverb ("Near Miss").
 function decide_near_or_mid(title, i, prev, next) {
-  const personal = ["me", "him", "them", "us", "it", "you"];
-  if (DETERMINERS.has(prev) && !personal.includes(prev)) {
+  if (DETERMINERS.has(prev)) {
     return capital(AS_NOUN_OR_ADJECTIVE);
   }
-  if (DETERMINERS.has(next)) {
+  if (DETERMINERS.has(next) || OBJECT_PRONOUNS.has(next)) {
     return lower("is used as a preposition");
   }
   return capital("is used as a noun, adjective or adverb");
@@ -333,7 +329,7 @@ function decide_near_or_mid(title, i, prev, next) {
 // till, til, thru (short for "until" / "through"): a conjunction when a clause follows ("Hop 'Til You Drop",
 // "Wait Till I Come"), otherwise a preposition ("Party till Dawn").
 function decide_till_or_thru(title, i, prev, next) {
-  if (SUBJECT_PRONOUNS.has(next) || AUXILIARIES.has(next)) {
+  if (CLAUSE_STARTERS.has(next)) {
     return capital("is used as a conjunction");
   }
   return lower("is used as a preposition");
@@ -368,7 +364,7 @@ const CONTEXT_RULES = new Map([
     },
     // a conjunction before a clause ("Faster Than They Appear"), otherwise a preposition ("Stranger than Fiction")
     than(title, i, prev, next) {
-      if (THAN_CONJUNCTION_NEXT.has(next) || (prev === "said" && next === "done")) {
+      if (CLAUSE_STARTERS.has(next) || (prev === "said" && next === "done")) {
         return capital("is used as a conjunction");
       }
       return lower("is used as a preposition");
@@ -380,11 +376,7 @@ const CONTEXT_RULES = new Map([
       if (prev !== null && title.plainBefore(i) && LIKE_PREPOSITION_AFTER.has(prev)) {
         return lower(AS_PREPOSITION);
       }
-      if (
-        prev !== null &&
-        title.plainBefore(i) &&
-        (SUBJECT_PRONOUNS.has(prev) || AUXILIARIES.has(prev))
-      ) {
+      if (prev !== null && title.plainBefore(i) && CLAUSE_STARTERS.has(prev)) {
         return capital("is used as a verb");
       }
       if (next !== null && title.plainAfter(i) && ARTICLES.has(next)) {

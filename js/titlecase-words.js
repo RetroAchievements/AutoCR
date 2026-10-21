@@ -1,65 +1,100 @@
 // Word tables for titlecase.js, see https://titlecaseconverter.com/words-to-capitalize/
+// Each word group is listed once below; the sets titlecase.js asks about are built from them further down.
 
 const words = (list) => new Set(list.trim().split(/\s+/));
+const union = (...groups) => new Set(groups.flatMap((group) => [...group]));
+const without = (group, ...excluded) => new Set([...group].filter((w) => !excluded.includes(w)));
 
-// Articles, "and but for or nor", "as" and prepositions of four letters or fewer.
-export const ALWAYS_LOWER = words(`
-  a an the and but for or nor as
-  at of to into onto unto from with amid upon qua sans atop vs vs. v v. via per 'n' n' 'n
+// --- Word groups ---
+
+export const ARTICLES = words("a an the");
+
+// Chicago lowercases these; "yet" and "so" are capitalized.
+export const COORDINATING_CONJUNCTIONS = words("and but for or nor");
+
+// Prepositions of four letters or fewer, always lowercased. Short prepositions that can also be other parts of
+// speech (up, like, past, near, till, ...) are decided from context instead.
+export const SHORT_PREPOSITIONS = words(`
+  at of to for into onto unto from with amid upon qua sans atop vs v via per
+`);
+
+// Capitalized like any other word, but they still never start an object.
+const LONG_PREPOSITIONS = words(`
+  about above across against along among around beneath beside besides between beyond despite during except
+  inside outside past through throughout toward towards under underneath unlike versus within without
 `);
 
 // Lowercase as prepositions, capitalized as adverbs ("Look Out!") or nouns ("the Off Season").
 export const PARTICLES = words("up out off on in by over down");
 
-export const ARTICLES = words("a an the");
+// Adverbs after any verb form ("Moving Up the Field").
+export const ADVERB_BIASED = words("up out");
 
-export const NOUN_DETERMINERS = words("the my your his her its our their");
-
-export const DETERMINERS = words(`
-  the a an this that these those my your his her its our their whose some any every each no all both
-  me him them us it you
+const SUBORDINATORS = words(`
+  when where while until till before after because though although as if unless whether since than like
 `);
 
-export const OBJECT_PRONOUNS = words("me him her them us it you this that em");
+const SUBJECT_PRONOUNS = words("i you we they he she it");
 
-export const SUBJECT_PRONOUNS = words("i you we they he she it who");
+export const OBJECT_PRONOUNS = words("me him her them us it you em");
 
-export const AUXILIARIES = words(`
-  do don't does doesn't did didn't will won't would wouldn't could couldn't should shouldn't can can't cannot
-  may might must shall gonna gotta wanna am is are was were be been being isn't aren't wasn't weren't
-`);
+const DEMONSTRATIVES = words("this that these those");
 
-export const COORDINATORS = words("and or but nor yet");
+const POSSESSIVES = words("my your his her its our their whose");
 
-export const SHORT_PREPOSITIONS = words("to with for from into onto of at upon");
+const QUANTIFIERS = words("some any every each no all both");
 
-// "Better Than I Thought"
-export const THAN_CONJUNCTION_NEXT = words(`
-  i you we they he she it is are was were has have had do does did can could will would should may might must
-`);
+const BE = words("am is are was were be been being isn't aren't wasn't weren't");
 
-// "Bend It like Beckham", "Smells like Steak"
-export const LIKE_PREPOSITION_AFTER = words(`
-  it him her them me us just more nothing run fight walk live ride shine built bright place
-  is are was were am be been being it's that's smell smells smelled look looks looked taste tastes tasted
-  feel feels felt eat ate
-`);
+const AUXILIARIES = union(
+  BE,
+  words(`
+    do don't does doesn't did didn't has have had
+    will won't would wouldn't could couldn't should shouldn't can can't cannot may might must shall
+    gonna gotta wanna
+  `),
+);
 
-// "Time Went By So Fast", "Better Off Without You"
-export const NOT_AN_OBJECT = words(`
+const ADVERBS = words(`
   so too very now then again anytime anywhere anymore soon fast quick quickly slowly later tonight today
   tomorrow yesterday forever never ever always already yet still away next first last early late once
   twice more most much well far near close ahead behind below above ago also even only just really maybe perhaps
-  is are was were am isn't aren't wasn't weren't will won't would could
-  should shall may might must can can't cannot when where while until till before after because though although
-  as if unless whether since than like
-  of to with for from into onto unto at upon about above across against along amid among around beneath beside besides
-  between beyond despite during except inside outside past through throughout toward towards under underneath unlike
-  versus via within without
 `);
 
-// Adverbs after any verb form ("Moving Up the Field").
-export const ADVERB_BIASED = words("up out");
+// --- Sets built from the groups ---
+
+// Words that start a noun phrase: "near the Worm Holes", "In the Near Future".
+export const DETERMINERS = union(ARTICLES, DEMONSTRATIVES, POSSESSIVES, QUANTIFIERS);
+
+// Words that start a clause, making the word before them a conjunction: "Better Than I Thought",
+// "Wait Till I Come", and a verb after them: "I Like Trains", "Don't Like Mondays".
+export const CLAUSE_STARTERS = union(SUBJECT_PRONOUNS, AUXILIARIES, ["who"]);
+
+// Words that can't start an object, so a particle before them is an adverb: "Time Went By So Fast",
+// "Better Off Without You".
+export const NOT_AN_OBJECT = union(
+  ADVERBS,
+  AUXILIARIES,
+  COORDINATING_CONJUNCTIONS,
+  SUBORDINATORS,
+  SHORT_PREPOSITIONS,
+  LONG_PREPOSITIONS,
+);
+
+// Pronouns that can sit between a phrasal verb and its particle: "Pick It Up", "Turn That Off".
+export const PHRASAL_VERB_OBJECTS = union(OBJECT_PRONOUNS, DEMONSTRATIVES);
+
+// Words after which "like" is a preposition: "Bend It like Beckham", "Smells like Steak", "It Was like a Dream".
+export const LIKE_PREPOSITION_AFTER = union(
+  without(OBJECT_PRONOUNS, "you"),
+  BE,
+  words(`
+    it's that's just more nothing run fight walk live ride shine built bright place
+    smell smells smelled look looks looked taste tastes tasted feel feels felt eat ate
+  `),
+);
+
+// --- Other tables ---
 
 export const ABBREVIATIONS = words(
   "vs v etc mr mrs ms dr st jr sr no vol ft mt inc ltd co feat ep op pt ch",
