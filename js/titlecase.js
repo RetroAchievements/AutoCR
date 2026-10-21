@@ -471,6 +471,8 @@ function decide(title, i) {
   return reason ? lower(reason) : capital(DEFAULT_REASON);
 }
 
+// Returns the title-cased phrase and the words it changed: { suggestion, changes: [{ word, cased, reason }] }.
+// The phrase is correctly cased when changes is empty.
 export function analyze_title_case(phrase) {
   const title = new Title(phrase);
   const words = title.tokens.map(({ word }, i) => {
@@ -481,11 +483,10 @@ export function analyze_title_case(phrase) {
     } else if (cap === false) {
       cased = word.toLowerCase();
     }
-    return { word, cased, changed: cased !== word, reason };
+    return { word, cased, reason };
   });
   return {
-    ok: words.every((w) => !w.changed),
     suggestion: words.map((w, i) => title.jointBefore(i) + w.cased).join("") + title.lastJoint,
-    words,
+    changes: words.filter((w) => w.cased !== w.word),
   };
 }

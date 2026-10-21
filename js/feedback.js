@@ -1737,8 +1737,8 @@ function* check_missing_enum(logic) {
 }
 
 function* check_title_case(asset) {
-  const { ok, suggestion, words } = analyze_title_case(asset.title);
-  if (!ok) {
+  const { suggestion, changes } = analyze_title_case(asset.title);
+  if (changes.length > 0) {
     const q = encodeURIComponent(asset.title);
     yield new Issue(
       Feedback.TITLE_CASE,
@@ -1748,13 +1748,11 @@ function* check_title_case(asset) {
           Automated suggestion: <em>{suggestion}</em>
         </li>
         <ul>
-          {words
-            .filter((w) => w.changed)
-            .map((w, i) => (
-              <li key={i}>
-                <code>{w.word}</code> &rarr; <code>{w.cased}</code>: {w.reason}
-              </li>
-            ))}
+          {changes.map((w, i) => (
+            <li key={i}>
+              <code>{w.word}</code> &rarr; <code>{w.cased}</code>: {w.reason}
+            </li>
+          ))}
         </ul>
         <li>Additional suggestions (links below have been auto-filled with original title)</li>
         <ul>

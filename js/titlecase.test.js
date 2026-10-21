@@ -104,19 +104,18 @@ describe("Util: analyze_title_case", () => {
   for (const [behavior, cases] of Object.entries(CASES)) {
     describe(behavior, () => {
       it.each(cases)("given %p, suggests %p", (title, expected) => {
-        const { ok, suggestion } = analyze_title_case(title);
+        const { suggestion } = analyze_title_case(title);
 
         expect(suggestion).toBe(expected);
-        expect(ok).toBe(title === expected);
       });
     });
   }
 
   it("given a title with a miscased word, explains each change", () => {
-    const { words } = analyze_title_case("Sit On It!");
+    const { changes } = analyze_title_case("Sit On It!");
 
-    expect(words.filter((w) => w.changed)).toEqual([
-      { word: "On", cased: "on", changed: true, reason: "seems to be used as a preposition" },
+    expect(changes).toEqual([
+      { word: "On", cased: "on", reason: "seems to be used as a preposition" },
     ]);
   });
 });
