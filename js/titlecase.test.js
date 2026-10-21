@@ -52,6 +52,14 @@ const CASES = {
     ["A Tail As Old As Me", "A Tail as Old as Me"],
     ['"P" is for "Perfect"', '"P" Is for "Perfect"'],
   ],
+  "treats single quotes like double quotes, but keeps apostrophes with their words": [
+    ["Say 'The End'", "Say 'The End'"],
+    ["Say ‘The End’", "Say ‘The End’"],
+    ["The C Stands For 'Crying'", "The C Stands for 'Crying'"],
+    ["Players' Choice: Kick 'em Out", "Players' Choice: Kick 'Em Out"],
+    ["Look Ma', No Hands", "Look Ma', No Hands"],
+    ["Back to the '90s", "Back to the '90s"],
+  ],
   "lowercases clipped forms and keeps abbreviation periods": [
     ["Sweet Child O' Mine (First Place)", "Sweet Child o' Mine (First Place)"],
     ["Rap N' Roll IV - Green Dance", "Rap n' Roll IV - Green Dance"],

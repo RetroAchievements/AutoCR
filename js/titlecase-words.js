@@ -36,7 +36,7 @@ const SUBORDINATORS = words(`
 
 const SUBJECT_PRONOUNS = words("i you we they he she it");
 
-export const OBJECT_PRONOUNS = words("me him her them us it you em");
+export const OBJECT_PRONOUNS = words("me him her them us it you 'em");
 
 const DEMONSTRATIVES = words("this that these those");
 

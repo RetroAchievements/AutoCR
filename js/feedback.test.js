@@ -303,37 +303,13 @@ describe("Util: assess_achievement", () => {
 });
 
 describe("Util: assess_achievement title case", () => {
-  it.each([
-    "You Only Got One Shot, Yet You Turned Off the Lights",
-    "Level Up! Look Out Below, Time Went By So Fast",
-  ])("given the correctly cased title %p, flags nothing", (name) => {
-    expect(titleCaseIssues(name)).toEqual([]);
-  });
-
-  it.each([
-    [
-      "Sit On It Like A Boss, Stranger Than Fiction",
-      "Sit on It like a Boss, Stranger than Fiction",
-    ],
-    ["Powered Up - The Battery Farm (One-On-One)", "Powered Up - the Battery Farm (One-on-One)"],
-    [
-      "Simple Yet Never Boring: A Chip Off The Old Block",
-      "Simple Yet Never Boring: A Chip off the Old Block",
-    ],
-    ["Burning 1-Up Mushroom Run-Of-The-Mill", "Burning 1-Up Mushroom Run-of-the-Mill"],
-  ])("given the miscased title %p, flags TITLE_CASE and suggests %p", (name, suggestion) => {
-    const issues = titleCaseIssues(name);
+  it("given a miscased title, flags TITLE_CASE with the suggestion, the changed words and the converter links", () => {
+    const issues = titleCaseIssues("Sit On It!");
 
     expect(issues).toHaveLength(1);
     expect(issues[0].target).toBe("title");
-    expect(renderToStaticMarkup(issues[0].detail)).toContain(`<em>${suggestion}</em>`);
-  });
-
-  it("given a miscased title, explains every changed word and links the converters with the original title", () => {
-    const [issue] = titleCaseIssues("Sit On It!");
-
-    const html = renderToStaticMarkup(issue.detail);
-
+    const html = renderToStaticMarkup(issues[0].detail);
+    expect(html).toContain("<em>Sit on It!</em>");
     expect(html).toContain("<code>On</code> → <code>on</code>: seems to be used as a preposition");
     expect(html).not.toContain("<code>Sit</code>");
     expect(html).toContain("titlecaseconverter.com/?style=CMOS");

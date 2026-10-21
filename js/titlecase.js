@@ -24,7 +24,7 @@ const WORD_RE = /[\p{L}\p{N}'’]+(?:\.(?=[\p{L}\p{N}])[\p{L}\p{N}'’]+)*/gu;
 // Joint before a word that starts a new clause (subtitle or sentence): it contains one of ! ? : ; ) ] } / |,
 // Examples: "Climb Up! And Get…", "Act 1: The Start", "(Bonus) The Trials" , 'Say "Hello"'
 // Commas, dashes and ellipses don't start a clause: "Powered Up - the Battery Farm", "Bridge... of Doom".
-const CLAUSE_START_RE = /[!?:;)\]}/|]|(?<![.])\.(?![.])|["“‘']$/;
+const CLAUSE_START_RE = /[!?:;)\]}/|]|(?<![.])\.(?![.])|["“‘'’]$/;
 // Joint after a word that ends a clause; same idea, mirrored: "Level Up!", "Pick It Up (Bonus)", '"Up" Is Down'.
 const CLAUSE_END_RE = /[!?:;()[\]{}/|]|(?<![.])\.(?![.])|^["”’']/;
 // Joint ending in a dash: "Done! - the End" does not start a new clause even though it contains "!".
@@ -36,12 +36,16 @@ const HYPHEN_RE = /^[-‐‑]$/;
 // Joint that is only whitespace: the words are directly next to each other ("Turn Off", not "Turn, Off").
 const WHITESPACE_RE = /^\s+$/;
 // Joint of whitespace and opening quotes: 'Sit on "It"'.
-const OPENING_QUOTE_RE = /^\s+["“‘([]+$/;
+const OPENING_QUOTE_RE = /^\s+["“‘'’([]+$/;
 
 // A letter from a non-Latin script (Cyrillic, Greek, Japanese, ...): "Привет", "ゼルダ".
 const NON_LATIN_RE = /[\p{L}&&[^\p{Script=Latin}]]/v;
 // Single letters separated by periods: "L.A", "U.S", "J". Used to keep the final period with the word ("L.A.").
 const INITIALISM_RE = /^(?:\p{L}\.)*\p{L}$/u;
+// Word starting with an apostrophe that is part of the word rather than an opening quote: clipped words ("'Til",
+// "'Em", "Rock 'n' Roll") and decades ("'90s"). Any other leading apostrophe is a quote mark: "Say 'The End'".
+const LEADING_APOSTROPHE_RE =
+  /^['’](?:\p{N}|(?:em|n|til|till|bout|cause|round|tis|twas|neath|nuff)['’]?$)/iu;
 // Clipped words that are always lowercased:
 const CLIPPED_OF_RE = /^o['’]$/i; // o' ("Child o' Mine")
 const CLIPPED_AND_RE = /^(?:['’]n['’]?|n['’])$/i; // 'n', 'n, n' ("Rock 'n' Roll", "Rap n' Roll")
@@ -79,33 +83,45 @@ const DEFAULT_REASON =
 
 // A title is split into words and "joints" (the text between two words) which are used for most regexes.
 // "Sit On It!" → tokens [{joint: "", word: "Sit"}, {joint: " ", word: "On"}, {joint: " ", word: "It"}], lastJoint "!"
+// Apostrophes used as single quotes go to the joints, so they work like double quotes: "Say 'The End'" →
+// words "Say", "The", "End". A trailing apostrophe closes an open quote, otherwise it stays: "Players'", "Movin'".
 function tokenize(phrase) {
   const tokens = [];
   let last = 0;
+  let quoteOpen = false;
   for (const match of phrase.matchAll(WORD_RE)) {
     let word = match[0];
-    let end = match.index + word.length;
+    let start = match.index;
+    let end = start + word.length;
+    const leading = LEADING_APOSTROPHE_RE.test(word) ? 0 : word.match(/^['’]*/)[0].length;
+    if (leading > 0 || /‘\s*$/.test(phrase.slice(last, start))) {
+      quoteOpen = true;
+    }
+    const trailing = quoteOpen ? word.match(/['’]*$/)[0].length : 0;
+    if (trailing > 0) {
+      quoteOpen = false;
+    }
+    if (leading + trailing >= word.length) {
+      continue;
+    }
+    word = word.slice(leading, word.length - trailing);
+    start += leading;
+    end -= trailing;
     // "vs." / "Mr.": the period belongs to the word
     const abbreviation = ABBREVIATIONS.has(word.toLowerCase()) || INITIALISM_RE.test(word);
     if (phrase[end] === "." && phrase[end + 1] !== "." && abbreviation) {
       word += ".";
       end++;
     }
-    tokens.push({ joint: phrase.slice(last, match.index), word });
+    tokens.push({ joint: phrase.slice(last, start), word });
     last = end;
   }
   return { tokens, lastJoint: phrase.slice(last) };
 }
 
-// Normalized form used to look a word up in the word tables: "'Til" → "til", "Vs." → "vs", "Don’t" → "don't"
+// Normalized form used to look a word up in the word tables: "'Til" → "'til", "Vs." → "vs", "Don’t" → "don't"
 function lookup_key(word) {
-  const lowered = word.toLowerCase();
-  return (
-    lowered
-      .replaceAll("’", "'")
-      .replace(/\.$/, "")
-      .replaceAll(/^'+|'+$/g, "") || lowered
-  );
+  return word.toLowerCase().replaceAll("’", "'").replace(/\.$/, "");
 }
 
 // "'til" → "'Til", "hELLO" → "Hello"
@@ -390,6 +406,8 @@ const CONTEXT_RULES = new Map([
     mid: decide_near_or_mid,
     thru: decide_till_or_thru,
     til: decide_till_or_thru,
+    "'til": decide_till_or_thru,
+    "'till": decide_till_or_thru,
     till: decide_till_or_thru,
   }),
 ]);
