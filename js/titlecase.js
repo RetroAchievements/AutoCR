@@ -231,6 +231,15 @@ class Title {
     return i + 1 < this.length && !this.startsClause(i + 1) ? this.keys[i + 1] : null;
   }
 
+  // previous/next word if only whitespace separates it from word i ("Fly like a", not "Fly, like" or "Fly-Like")
+  adjacentPrev(i) {
+    return this.plainBefore(i) ? this.keys[i - 1] : null;
+  }
+
+  adjacentNext(i) {
+    return this.plainAfter(i) ? this.keys[i + 1] : null;
+  }
+
   plainBefore(i) {
     return i > 0 && WHITESPACE_RE.test(this.tokens[i].joint);
   }
@@ -296,20 +305,18 @@ class Title {
 // "Sit on It", "Turn Off the Lights", "Come out of the Shadows", "Moving Up in the World"
 function decide_particle(title, i) {
   const particle = title.keys[i];
-  const prev = title.prevKey(i);
   const next = title.nextKey(i);
-  const plainBefore = title.plainBefore(i);
 
   if (title.precededByPhrasalVerb(i)) {
     return capital("seems to be used as an adverb (phrasal verb)");
   }
-  if (next === "of" && title.plainAfter(i)) {
+  if (title.adjacentNext(i) === "of") {
     return lower('is part of a compound preposition ("out of")');
   }
   if (particle === "by" && ["now", "then", "far"].includes(next)) {
     return lower('is part of a compound preposition ("by now")');
   }
-  if (ADVERB_BIASED.has(particle) && prev !== null && plainBefore && VERB_FORM_RE.test(prev)) {
+  if (ADVERB_BIASED.has(particle) && VERB_FORM_RE.test(title.adjacentPrev(i) ?? "")) {
     return capital("seems to be used as an adverb (after a verb form)");
   }
   if (!title.followedByObject(i)) {
@@ -321,7 +328,7 @@ function decide_particle(title, i) {
 // past, plus: a preposition before an object ("Snuck past the Star", "Two plus Two"),
 // a noun or adjective after a determiner ("Ghosts of the Past"), an adverb before a clause boundary ("Rush Past: Bonus").
 function decide_past_or_plus(title, i, prev, next) {
-  if (prev !== null && title.plainBefore(i) && DETERMINERS.has(prev)) {
+  if (DETERMINERS.has(title.adjacentPrev(i))) {
     return capital(AS_NOUN_OR_ADJECTIVE);
   }
   if (next === null && !title.quoteAfter(i)) {
@@ -388,14 +395,15 @@ const CONTEXT_RULES = new Map([
     // a preposition after "it", "smells", ... or before an article ("Bend It like Jordan", "Fly like a Bird"),
     // a verb after a subject or auxiliary ("I Like a Challenge", "Don't You Like Trains?"),
     // otherwise a verb, adjective or conjunction ("I Like Trains", "Party Like It's 2025")
-    like(title, i, prev, next) {
-      if (prev !== null && title.plainBefore(i) && LIKE_PREPOSITION_AFTER.has(prev)) {
+    like(title, i) {
+      const before = title.adjacentPrev(i);
+      if (LIKE_PREPOSITION_AFTER.has(before)) {
         return lower(AS_PREPOSITION);
       }
-      if (prev !== null && title.plainBefore(i) && CLAUSE_STARTERS.has(prev)) {
+      if (CLAUSE_STARTERS.has(before)) {
         return capital("is used as a verb");
       }
-      if (next !== null && title.plainAfter(i) && ARTICLES.has(next)) {
+      if (ARTICLES.has(title.adjacentNext(i))) {
         return lower(AS_PREPOSITION);
       }
       return capital("is probably used as a verb, an adjective or a conjunction");
