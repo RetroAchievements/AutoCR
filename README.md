@@ -79,6 +79,20 @@ bun run test      # run every test file with isolation enabled
 
 `bun run test` isolates each test file, so module state such as `current` in _js/state.js_ cannot leak from one file into the next.
 
+### Title case benchmark
+
+In `test/fixtures/titlecase-reference.json`, there are 10,000 randomly sampled (real) achievement titles with the
+reference casing from [titlecaseconverter.com](https://titlecaseconverter.com/?style=CMOS) (Chicago, keep all caps).
+The benchmark can be used to verify changes in the word lists or rules in `js/titlecase.js`:
+
+```shell
+bun run benchmark:titlecase            # accuracy, false positives, misses
+bun run benchmark:titlecase --verbose  # also lists every disagreement
+```
+
+Note: There are certain edge cases where the reference output is questionable and not following the rules posted on
+titlecaseconverter.com.
+
 ## Deployment
 
 Commits to `main` automatically deploy the repo root to [GitHub Pages](https://retroachievements.github.io/AutoCR/).

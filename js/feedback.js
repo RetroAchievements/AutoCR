@@ -14,85 +14,7 @@ import {
 } from "./logic";
 import { Leaderboard, AssetState, RichPresence } from "./achievements";
 import { current, get_game_title } from "./state";
-
-function tc(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function make_title_case(phrase) {
-  const TITLE_CASE_MINORS = new Set([
-    "a",
-    "an",
-    "and",
-    "as",
-    "at",
-    "but",
-    "by",
-    "en",
-    "for",
-    "from",
-    "how",
-    "if",
-    "in",
-    "n'",
-    "'n'",
-    "neither",
-    "nor",
-    "of",
-    "on",
-    "only",
-    "onto",
-    "out",
-    "or",
-    "over",
-    "per",
-    "so",
-    "than",
-    "the",
-    "to",
-    "until",
-    "up",
-    "upon",
-    "v",
-    "v.",
-    "versus",
-    "vs",
-    "vs.",
-    "via",
-    "when",
-    "with",
-    "without",
-    "yet",
-  ]);
-  function tc_minor(word) {
-    return TITLE_CASE_MINORS.has(word);
-  }
-  const lastws = phrase.matchAll(/\s/g).toArray()?.pop()?.index;
-  return phrase.replaceAll(/[0-9'\u2018\u2019\p{Script=Latin}]+/gu, (x, i) => {
-    // if the word is presented in allcaps, assume it is done so intentionally
-    if (x === x.toUpperCase()) {
-      return x;
-    }
-    // first and last word of a phrase should be capitalized
-    if (i === 0 || lastws + 1 === i) {
-      return tc(x);
-    }
-    // if this is part of a hyphenated word, don't change it
-    if (phrase[i - 1] === "-") {
-      return x;
-    }
-    // first word of a new sentence should be capitalized again
-    for (let j = i - 1; j >= 0; j--) {
-      if (".!?:;-".includes(phrase[j])) {
-        return tc(x);
-      } else if (!phrase[j].match(/[\s"]/)) {
-        break;
-      }
-    }
-    // otherwise, just base it off of the minors rule
-    return tc_minor(x.toLowerCase()) ? x.toLowerCase() : tc(x);
-  });
-}
+import { analyze_title_case } from "./titlecase";
 
 export function toDisplayHex(addr) {
   return "0x" + addr.toString(16).padStart(8, "0");
@@ -1815,16 +1737,23 @@ function* check_missing_enum(logic) {
 }
 
 function* check_title_case(asset) {
-  const corrected_title = make_title_case(asset.title);
-  if (corrected_title !== asset.title) {
+  const { suggestion, changes } = analyze_title_case(asset.title);
+  if (changes.length > 0) {
     const q = encodeURIComponent(asset.title);
     yield new Issue(
       Feedback.TITLE_CASE,
       "title",
       <ul>
         <li>
-          Automated suggestion: <em>{corrected_title}</em>
+          Automated suggestion: <em>{suggestion}</em>
         </li>
+        <ul>
+          {changes.map((w, i) => (
+            <li key={i}>
+              <code>{w.word}</code> &rarr; <code>{w.cased}</code>: {w.reason}
+            </li>
+          ))}
+        </ul>
         <li>Additional suggestions (links below have been auto-filled with original title)</li>
         <ul>
           <li>
@@ -1845,8 +1774,9 @@ function* check_title_case(asset) {
         </ul>
         <li>
           <em>
-            Warning: automated suggestions don&apos;t handle hyphenated or otherwise-separated words
-            gracefully. When in doubt, please rely on the sites linked above.
+            Warning: automated suggestions guess whether words like &quot;up&quot;, &quot;out&quot;
+            or &quot;like&quot; are used as prepositions. When in doubt, please rely on the sites
+            linked above.
           </em>
         </li>
       </ul>,
