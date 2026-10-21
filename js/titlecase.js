@@ -63,6 +63,23 @@ const AS_PREPOSITION = "seems to be used as a preposition";
 const AS_LETTER = "is used as a letter (noun)";
 const AS_NOUN_OR_ADJECTIVE = "is used as a noun or adjective";
 
+// Words that are always lowercased, with their reason. ALWAYS_LOWER also contains the articles, conjunctions, "as"
+// and "to", so the first group listing a word gives the reason (reversed, so earlier groups overwrite later ones).
+const LOWERCASE_REASONS = new Map(
+  [
+    ["is an article", ARTICLES],
+    ["is a coordinating conjunction", ["and", "but", "or", "nor"]],
+    ['is "as", which Chicago style always lowercases', ["as"]],
+    ["is a preposition or part of an infinitive", ["to"]],
+    ["is a preposition of four letters or fewer", ALWAYS_LOWER],
+  ]
+    .flatMap(([reason, keys]) => [...keys].map((key) => [key, reason]))
+    .reverse(),
+);
+// Every other word is capitalized.
+const DEFAULT_REASON =
+  "is neither an article, a coordinating conjunction nor a preposition of four letters or fewer";
+
 // A title is split into words and "joints" (the text between two words) which are used for most regexes.
 // "Sit On It!" → tokens [{joint: "", word: "Sit"}, {joint: " ", word: "On"}, {joint: " ", word: "It"}], lastJoint "!"
 function tokenize(phrase) {
@@ -322,10 +339,12 @@ function decide_till_or_thru(title, i, prev, next) {
   return lower("is used as a preposition");
 }
 
-// Words whose function depends on context, with a rule each: (title, i, prev, next) → decision.
+// Words whose function depends on context (the particles and the words below), with a rule each:
+// (title, i, prev, next) → decision.
 // prev and next are the neighboring words' lookup keys, or null at a clause boundary.
-const SPECIAL_RULES = new Map(
-  Object.entries({
+const CONTEXT_RULES = new Map([
+  ...[...PARTICLES].map((p) => [p, decide_particle]),
+  ...Object.entries({
     // the letter in "Q&A", compounds ("A-Rank", "Type-A"), grades ("A+") and initials ("A. Wesker"); a title or
     // subtitle ending in "A" ("Plan A") is capitalized before this rule runs. Anywhere else it is the article: a
     // mid-title letter A ("Stage A Boss", "Sonata in A Major") is rare enough that RA writing policy asks for the
@@ -347,8 +366,6 @@ const SPECIAL_RULES = new Map(
         "is an article (if it is meant as the letter A, please reword the title to avoid a capital A)",
       );
     },
-    // always lowercase, only listed for its more precise reason ("Born to Run", "Back to School")
-    to: () => lower("is a preposition or part of an infinitive"),
     // a conjunction before a clause ("Faster Than They Appear"), otherwise a preposition ("Stranger than Fiction")
     than(title, i, prev, next) {
       if (THAN_CONJUNCTION_NEXT.has(next) || (prev === "said" && next === "done")) {
@@ -383,7 +400,7 @@ const SPECIAL_RULES = new Map(
     til: decide_till_or_thru,
     till: decide_till_or_thru,
   }),
-);
+]);
 
 // Decides how word i should be cased and why, returning { cap, reason } (see capital/lower/keep above).
 // The checks run in order and the first match wins: words to leave alone, then first/last word, then the
@@ -436,27 +453,12 @@ function decide(title, i) {
     }
     return capital("is an adverbial particle ending a hyphenated compound");
   }
-  if (SPECIAL_RULES.has(key)) {
-    return SPECIAL_RULES.get(key)(title, i, title.prevKey(i), title.nextKey(i));
+  const rule = CONTEXT_RULES.get(key);
+  if (rule) {
+    return rule(title, i, title.prevKey(i), title.nextKey(i));
   }
-  if (PARTICLES.has(key)) {
-    return decide_particle(title, i);
-  }
-  if (ARTICLES.has(key)) {
-    return lower("is an article");
-  }
-  if (["and", "but", "or", "nor"].includes(key)) {
-    return lower("is a coordinating conjunction");
-  }
-  if (key === "as") {
-    return lower('is "as", which Chicago style always lowercases');
-  }
-  if (ALWAYS_LOWER.has(key)) {
-    return lower("is a preposition of four letters or fewer");
-  }
-  return capital(
-    "is neither an article, a coordinating conjunction nor a preposition of four letters or fewer",
-  );
+  const reason = LOWERCASE_REASONS.get(key);
+  return reason ? lower(reason) : capital(DEFAULT_REASON);
 }
 
 export function analyze_title_case(phrase) {
