@@ -307,6 +307,12 @@ function decide_particle(title, i) {
   const particle = title.keys[i];
   const next = title.nextKey(i);
 
+  // inside a compound: "One-on-One"; at its end: "Follow-Up", "Burning 1-Up"
+  if (title.hyphenBefore(i)) {
+    return title.hyphenAfter(i)
+      ? lower("is a preposition inside a hyphenated compound")
+      : capital("is an adverbial particle ending a hyphenated compound");
+  }
   if (title.precededByPhrasalVerb(i)) {
     return capital("seems to be used as an adverb (phrasal verb)");
   }
@@ -463,13 +469,6 @@ function decide(title, i) {
   }
   if (title.endsClause(i) && !title.hyphenAfter(i)) {
     return capital("is the last word of the title or subtitle");
-  }
-  // inside a compound: "One-on-One", "Face-to-Face"; at its end: "Follow-Up", "Burning 1-Up"
-  if (hyphenBefore && (PARTICLES.has(key) || key === "to" || key === "for")) {
-    if (title.hyphenAfter(i) || key === "to" || key === "for") {
-      return lower("is a preposition inside a hyphenated compound");
-    }
-    return capital("is an adverbial particle ending a hyphenated compound");
   }
   const rule = CONTEXT_RULES.get(key);
   if (rule) {
