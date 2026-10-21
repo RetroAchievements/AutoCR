@@ -65,14 +65,6 @@ export const ABBREVIATIONS = words(
   "vs v etc mr mrs ms dr st jr sr no vol ft mt inc ltd co feat ep op pt ch",
 );
 
-// "Plan A", "Sonata in A Major"
-export const LETTER_A_BEFORE = words(`
-  plan type grade vitamin exhibit class team route side level rank tier option button zone group version model
-  sonata key concerto symphony quartet series schedule table figure appendix section part chapter block phase stage
-  tab wing door gate slot mode
-`);
-export const LETTER_A_AFTER = words("major minor plus minus sharp flat");
-
 // Separable phrasal verbs keep the particle an adverb before an object ("Turn Off the Lights"). Intransitive ones
 // are left out on purpose ("Stay in School").
 export const PHRASAL_VERBS = new Map([

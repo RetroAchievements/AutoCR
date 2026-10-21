@@ -75,16 +75,20 @@ const CASES = {
     ["PlayStation McDonald iPhone NES", "PlayStation McDonald iPhone NES"],
     ["NES CLASSIC - Armed To The Teeth", "NES CLASSIC - Armed to the Teeth"],
   ],
-  "tells the letter A from the article": [
-    ["Sonata in a Major", "Sonata in A Major"],
+  "capitalizes the letter A where it cannot be the article": [
     ["Q&a Time", "Q&A Time"],
     ["Plan a", "Plan A"],
     ["Route a: Railway Industry", "Route A: Railway Industry"],
+    ["Get an a-Rank", "Get an A-Rank"],
+    ["Type-a Personality", "Type-A Personality"],
+    ["Straight a+ Student", "Straight A+ Student"],
+    ["Rank - a. Wesker", "Rank - A. Wesker"],
   ],
-  "leaves an ambiguous letter A or article as written": [
-    ["Class A Pirate", "Class A Pirate"],
-    ["Stage a Comeback", "Stage a Comeback"],
-    ["Block a Ball", "Block a Ball"],
+  "lowercases every other capital A as the article": [
+    ["Stage A Comeback", "Stage a Comeback"],
+    ["Class A Pirate", "Class a Pirate"],
+    ["Sonata in A Major", "Sonata in a Major"],
+    ["Still A Long Way to Go", "Still a Long Way to Go"],
   ],
 };
 

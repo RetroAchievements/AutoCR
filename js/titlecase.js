@@ -9,8 +9,6 @@ import {
   COORDINATORS,
   DETERMINERS,
   IRREGULAR_VERBS,
-  LETTER_A_AFTER,
-  LETTER_A_BEFORE,
   LIKE_PREPOSITION_AFTER,
   NOT_AN_OBJECT,
   NOUN_DETERMINERS,
@@ -328,9 +326,11 @@ function decide_till_or_thru(title, i, prev, next) {
 // prev and next are the neighboring words' lookup keys, or null at a clause boundary.
 const SPECIAL_RULES = new Map(
   Object.entries({
-    // the article ("a Rotten Egg") or the letter ("Plan A", "Sonata in A Major", "Q&A");
-    // after "class", "stage", ... both readings work ("Class A Pirate", "Stage a Comeback"), so it is left as written
-    a(title, i, prev, next) {
+    // the letter in "Q&A", compounds ("A-Rank", "Type-A"), grades ("A+") and initials ("A. Wesker"); a title or
+    // subtitle ending in "A" ("Plan A") is capitalized before this rule runs. Anywhere else it is the article: a
+    // mid-title letter A ("Stage A Boss", "Sonata in A Major") is rare enough that RA writing policy asks for the
+    // title to be reworded instead.
+    a(title, i) {
       if (title.jointBefore(i).includes("&") || title.jointBefore(i + 1).includes("&")) {
         return capital(AS_LETTER);
       }
@@ -339,19 +339,13 @@ const SPECIAL_RULES = new Map(
       if (hyphenBefore && hyphenAfter) {
         return lower("is an article inside a hyphenated compound");
       }
-      if (hyphenAfter || next === null || !title.plainAfter(i)) {
+      // the article is always followed by a plain space, never by "+" or "."
+      if (hyphenBefore || hyphenAfter || !title.plainAfter(i) || title.word(i).endsWith(".")) {
         return capital(AS_LETTER);
       }
-      if (prev !== null && ARTICLES.has(prev)) {
-        return capital(AS_LETTER);
-      }
-      if (prev !== null && LETTER_A_BEFORE.has(prev)) {
-        return keep('could be the letter A or the article "a", left unchanged');
-      }
-      if (prev === "in" && LETTER_A_AFTER.has(next)) {
-        return capital(AS_LETTER);
-      }
-      return lower("is an article");
+      return lower(
+        "is an article (if it is meant as the letter A, please reword the title to avoid a capital A)",
+      );
     },
     // always lowercase, only listed for its more precise reason ("Born to Run", "Back to School")
     to: () => lower("is a preposition or part of an infinitive"),
