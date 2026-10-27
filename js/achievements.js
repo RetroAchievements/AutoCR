@@ -697,11 +697,20 @@ class PointerTreeParser {
   }
 }
 
+/**
+ * A note stored at 0x00000000 can be tagged as containing set-wide notes.
+ * Such a section starts on any line whose initial content is "[General game notes]".
+ * @see https://docs.retroachievements.org/guidelines/content/refactor-requirements.html#general-game-note
+ */
+const GENERAL_GAME_NOTES_HEADER_PATTERN = /^[ \t]*\[general game notes\]/im;
+
 export class CodeNote {
   addr;
   size = 1;
   type = null; // null means unknown, otherwise MemSize object
   note = "";
+  addressNote = ""; // the portion of the note that describes this address
+  hasGeneralGameNotes = false;
   author = "";
   enum = null;
   assetList = [];
@@ -714,13 +723,26 @@ export class CodeNote {
     this.note = note;
     this.author = author;
 
-    [this.type, this.size] = CodeNote.getSize(note);
+    [this.addressNote, this.hasGeneralGameNotes] = CodeNote.splitGeneralGameNotes(this.addr, note);
+    [this.type, this.size] = CodeNote.getSize(this.addressNote);
     if (!this.isProbablePointer()) {
-      this.enum = CodeNote.parseEnumerations(note);
+      this.enum = CodeNote.parseEnumerations(this.addressNote);
     }
 
     // Parse the note into a structure tree for the explainer
-    this.noteNodes = PointerTreeParser.parseNoteText(note);
+    this.noteNodes = PointerTreeParser.parseNoteText(this.addressNote);
+  }
+
+  static splitGeneralGameNotes(addr, note) {
+    const headerMatch = addr === 0 ? note.match(GENERAL_GAME_NOTES_HEADER_PATTERN) : null;
+    if (!headerMatch) {
+      return [note, false];
+    }
+    return [note.slice(0, headerMatch.index), true];
+  }
+
+  isGeneralGameNotesOnly() {
+    return this.hasGeneralGameNotes && this.addressNote.trim() === "";
   }
 
   getHeader() {
@@ -739,7 +761,7 @@ export class CodeNote {
   }
 
   isProbablePointer() {
-    const lines = this.note.toLowerCase().split("\n");
+    const lines = this.addressNote.toLowerCase().split("\n");
     if (["ptr", "pointer"].some((x) => lines[0].includes(x))) {
       return true;
     }
