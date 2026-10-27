@@ -1,0 +1,3 @@
+# Fixtures should remain byte-identical across every OS.
+# Without this, Windows may try to do a line-ending conversion.
+test/fixtures/** -text
