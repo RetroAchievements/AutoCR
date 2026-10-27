@@ -1872,6 +1872,10 @@ function* check_notes_bad_regions(notes) {
   const regions = current.set?.console?.regions || [];
   let ri = 0;
   for (const note of notes) {
+    if (note.isGeneralGameNotesOnly()) {
+      continue;
+    }
+
     while (ri < regions.length && note.addr > regions[ri].end) {
       ri++;
     }
@@ -1933,7 +1937,7 @@ function* check_notes_bad_regions(notes) {
 
 function* check_notes_missing_size(notes) {
   for (const note of notes) {
-    if (note.type == null && note.size === 1) {
+    if (note.type == null && note.size === 1 && !note.isGeneralGameNotesOnly()) {
       yield new Issue(
         Feedback.NOTE_NO_SIZE,
         note,
