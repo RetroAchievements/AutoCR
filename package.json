@@ -12,7 +12,8 @@
     "format:check": "oxfmt --check",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "test": "bun test --isolate"
+    "test": "bun test --isolate",
+    "benchmark:titlecase": "bun scripts/titlecase-benchmark.js"
   },
   "dependencies": {
     "react": "^18",

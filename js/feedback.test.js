@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { Achievement, AchievementSet, CodeNote, CodeNoteSet } from "./achievements";
 import { Feedback, assess_achievement, assess_leaderboard } from "./feedback";
@@ -66,6 +67,11 @@ function makeAchievement({
   });
 }
 
+function titleCaseIssues(name) {
+  const report = assess_achievement(makeAchievement({ logic: "0xH001234=1_d0xH001234=0", name }));
+  return report.issues.flat().filter((issue) => issue.type === Feedback.TITLE_CASE);
+}
+
 beforeEach(() => {
   clearLoadedSet();
 });
@@ -110,14 +116,10 @@ describe("Util: assess_achievement", () => {
       { expected: ["BAD_PRIOR"], id: 111_000_014, title: "Bad Prior #1" },
       { expected: ["BAD_PRIOR"], id: 111_000_015, title: "Bad Prior #2" },
       { expected: ["STALE_ADDADDRESS"], id: 111_000_017, title: "Stale AddAddress" },
-      {
-        expected: ["PAUSELOCK_NO_RESET", "TITLE_CASE"],
-        id: 111_000_018,
-        title: "PauseLock Without Reset",
-      },
+      { expected: ["PAUSELOCK_NO_RESET"], id: 111_000_018, title: "PauseLock Without Reset" },
       { expected: [], id: 111_000_019, title: "[PASS] PauseLock Fixed #1 (RNI)" },
       { expected: [], id: 111_000_020, title: "[PASS] PauseLock Fixed #2 (ResetIf in Alt)" },
-      { expected: ["HIT_NO_RESET", "TITLE_CASE"], id: 111_000_021, title: "Hits Without a Reset" },
+      { expected: ["HIT_NO_RESET"], id: 111_000_021, title: "Hits Without a Reset" },
       {
         expected: ["USELESS_ANDNEXT", "USELESS_ANDNEXT"],
         id: 111_000_022,
@@ -297,6 +299,21 @@ describe("Util: assess_achievement", () => {
 
       expect(collectDeltaFeedbackNames(report)).toEqual(["IMPROPER_DELTA"]);
     });
+  });
+});
+
+describe("Util: assess_achievement title case", () => {
+  it("given a miscased title, flags TITLE_CASE with the suggestion, the changed words and the converter links", () => {
+    const issues = titleCaseIssues("Sit On It!");
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0].target).toBe("title");
+    const html = renderToStaticMarkup(issues[0].detail);
+    expect(html).toContain("<em>Sit on It!</em>");
+    expect(html).toContain("<code>On</code> → <code>on</code>: seems to be used as a preposition");
+    expect(html).not.toContain("<code>Sit</code>");
+    expect(html).toContain("titlecaseconverter.com/?style=CMOS");
+    expect(html).toContain(`title=${encodeURIComponent("Sit On It!")}`);
   });
 });
 
