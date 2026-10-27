@@ -316,3 +316,52 @@ describe("Util: assess_leaderboard", () => {
     });
   });
 });
+
+// Leaderboards 162754 (hidden) and 160302 (visible) from game 17896 (Mega Man Star Force 3: Red Joker).
+const HIDDEN_LEADERBOARD_JSON = {
+  ID: 162_754,
+  Mem: "STA:A:34_A:d0xR0fcc9c_A:d0xS0fcc9c_A:d0xT0fcc9c_A:d0xN0fcc9d_A:d0xS0fcc9d_A:d0xT0fcc9d_A:d0xK0fcc9e_A:d0xK0fcc9f_A:d0xK0fcca0_A:d0xM0fcca1_A:d0xN0fcca1_A:d0xO0fcca1_B:0xR0fcc9c_B:0xS0fcc9c_B:0xT0fcc9c_B:0xN0fcc9d_B:0xS0fcc9d_B:0xT0fcc9d_B:0xK0fcc9e_B:0xK0fcc9f_B:0xK0fcca0_B:0xM0fcca1_B:0xN0fcca1_B:0xO0fcca1_B:0xP0fcca1_d0xP0fcca1<34_0xH0fca24=6::CAN:0=1::SUB:1=1::VAL:A:0xR0fcc9c_A:0xS0fcc9c_A:0xT0fcc9c_A:0xN0fcc9d_A:0xS0fcc9d_A:0xT0fcc9d_A:0xK0fcc9e_A:0xK0fcc9f_A:0xK0fcca0_A:0xM0fcca1_A:0xN0fcca1_A:0xO0fcca1_M:0xP0fcca1",
+  Format: "VALUE",
+  LowerIsBetter: false,
+  Title: "DO NOT SAVE - Card Cipher Codes Entered",
+  Description:
+    "DO NOT SAVE - You are now ineligable to earn any more achievements. Please reset your game.",
+  Hidden: true,
+};
+const VISIBLE_LEADERBOARD_JSON = {
+  ID: 160_302,
+  Mem: "STA:0xH0ffeb6=129_0xH0ffeb7=0_0xH0ea8b4=6Sd0xH0ea8b4=8Sd0xH0ea8b4=9::CAN:1=1S0xH0ea8b4=12_0xH1b473d=1S0xH0ea8b4=5::SUB:d0xH0ea8b4=6_0xH0ea8b4=10::VAL:A:0xX18f040*2_M:0",
+  Format: "TIME",
+  LowerIsBetter: true,
+  Title: "SpadeMagnes Speed Deletion",
+  Description: "Defeat SpadeMagnes as fast as possible",
+  Hidden: false,
+};
+
+function makeSetJSON(leaderboards) {
+  return {
+    ID: 17_896,
+    Title: "Mega Man Star Force 3: Red Joker",
+    Sets: [{ Achievements: [], Leaderboards: leaderboards }],
+  };
+}
+
+describe("Loader: AchievementSet.addJSON", () => {
+  describe("given a set with a hidden leaderboard", () => {
+    let set;
+    beforeEach(() => {
+      set = new AchievementSet().addJSON(
+        makeSetJSON([HIDDEN_LEADERBOARD_JSON, VISIBLE_LEADERBOARD_JSON]),
+      );
+    });
+
+    it("loads both the hidden and the visible leaderboard", () => {
+      expect(set.getLeaderboards().map((lb) => lb.id)).toEqual([162_754, 160_302]);
+    });
+
+    it("marks only the hidden leaderboard as hidden", () => {
+      expect(set.leaderboards.get(162_754).hidden).toBe(true);
+      expect(set.leaderboards.get(160_302).hidden).toBe(false);
+    });
+  });
+});

@@ -293,6 +293,7 @@ export class Leaderboard extends Asset {
 
   format;
   lower_is_better = true;
+  hidden = false;
   state = null;
   components = {};
 
@@ -306,6 +307,7 @@ export class Leaderboard extends Asset {
     lb.desc = json.Description;
     lb.format = FormatTypeMap[json.Format];
     lb.lower_is_better = json.LowerIsBetter;
+    lb.hidden = json.Hidden;
 
     lb.components = {};
     try {
@@ -439,7 +441,7 @@ export class AchievementSet {
 
     for (const [i, x] of ldbJson.entries()) {
       const asset = Leaderboard.fromJSON(x);
-      if (x.Hidden || !asset || !asset.needsFeedback()) {
+      if (!asset || !asset.needsFeedback()) {
         continue;
       }
       asset.index = i; // to preserve order from json file
