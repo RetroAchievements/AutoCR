@@ -197,6 +197,42 @@ describe("Util: assess_achievement", () => {
       expect(collectDeltaFeedbackNames(report)).toEqual(["MISSING_DELTA"]);
     });
 
+    it("given a Measured% hit timer but no Delta, does not flag Delta feedback", () => {
+      const measuredAchievement = makeAchievement({
+        logic: "G:0xH000420=2.1200._P:0xH000704=99.1.",
+      });
+
+      const deltaProblems = collectDeltaFeedbackNames(assess_achievement(measuredAchievement));
+
+      expect(deltaProblems).toEqual([]);
+    });
+
+    it("given the only hit target is 1 and no Delta exists, flags MISSING_DELTA", () => {
+      const oneHit = makeAchievement({ logic: "0xH001234=1.1." });
+
+      expect(collectDeltaFeedbackNames(assess_achievement(oneHit))).toEqual(["MISSING_DELTA"]);
+    });
+
+    it("given hit targets sit only under PauseIf and ResetIf and no Delta exists, flags MISSING_DELTA", () => {
+      const guardedHits = makeAchievement({
+        logic: "0xH001234=1_P:0xH005678=1.600._R:0xH009999=1.600.",
+      });
+
+      const deltaFlags = collectDeltaFeedbackNames(assess_achievement(guardedHits));
+
+      expect(deltaFlags).toEqual(["MISSING_DELTA"]);
+    });
+
+    it("given only some alt groups hold a hit timer and no Delta exists, flags MISSING_DELTA", () => {
+      const partialTimers = makeAchievement({
+        logic: "0xH005678=1S0xH001234=1.600.S0xH001234=2",
+      });
+
+      const report = assess_achievement(partialTimers);
+
+      expect(collectDeltaFeedbackNames(report)).toEqual(["MISSING_DELTA"]);
+    });
+
     it("given a Delta matched by a Mem on the same address, flags no Delta feedback", () => {
       const target = makeAchievement({ logic: "0xH001234=1_d0xH001234=0" });
 

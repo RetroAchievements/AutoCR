@@ -1011,6 +1011,10 @@ function generate_set_stats(set) {
   return stats;
 }
 
+function is_hit_based_timer(req) {
+  return req.hits >= 2 && (!req.flag || (!req.flag.chain && !PAUSERESET.has(req.flag)));
+}
+
 function* check_deltas(logic) {
   const DELTA_FEEDBACK = (
     <ul>
@@ -1037,7 +1041,8 @@ function* check_deltas(logic) {
     </ul>
   );
 
-  if (!logic.getOperands().some((x) => x.type === ReqType.DELTA)) {
+  const does_logic_have_delta = logic.getOperands().some((x) => x.type === ReqType.DELTA);
+  if (!does_logic_have_delta && !logic.groups.some((g) => g.some(is_hit_based_timer))) {
     yield new Issue(Feedback.MISSING_DELTA, null, DELTA_FEEDBACK);
     return;
   }
@@ -1108,6 +1113,11 @@ function* check_deltas(logic) {
         if (has_delta && !PAUSERESET.has(req.flag)) {
           return true;
         }
+
+        if (is_hit_based_timer(req)) {
+          return true;
+        }
+
         has_delta = false;
       }
     }
@@ -1116,6 +1126,11 @@ function* check_deltas(logic) {
 
   // either the core group must have the valid mem/delta check, or *all* alt groups
   if (delta_groups[0] || (delta_groups.length > 1 && delta_groups.slice(1).every(Boolean))) {
+    return;
+  }
+
+  if (!does_logic_have_delta) {
+    yield new Issue(Feedback.MISSING_DELTA, null, DELTA_FEEDBACK);
     return;
   }
 
