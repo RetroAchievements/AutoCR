@@ -1175,6 +1175,11 @@ function LeaderboardInfo({ lb }) {
     );
   }
 
+  const tags = [lb.state.name];
+  if (lb.hidden) {
+    tags.push("hidden");
+  }
+
   return (
     <>
       <div className="main-header">
@@ -1184,7 +1189,7 @@ function LeaderboardInfo({ lb }) {
           📊 <span className={`${feedback_targets.has("title") ? "warn" : ""}`}>{lb.title}</span>
         </h2>
         <div className="float-right">
-          <em>{`[${[lb.state.name].filter(Boolean).join(", ")}]`}</em>
+          <em>{`[${tags.join(", ")}]`}</em>
         </div>
         <p id="asset-desc">
           <span className={`${feedback_targets.has("desc") ? "warn" : ""}`}>{lb.desc}</span>
