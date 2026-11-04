@@ -874,7 +874,7 @@ export class ConditionFormatter {
     }
 
     const directNote = ConditionFormatter.getEffectiveNote(notesLookup, targetVal);
-    
+
     if (directNote && typeof directNote.getArrayElement === "function") {
       const el = directNote.getArrayElement(targetVal);
       if (el) {
