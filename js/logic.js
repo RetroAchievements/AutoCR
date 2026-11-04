@@ -670,7 +670,30 @@ export class ConditionFormatter {
     if (!note) {
       return null;
     }
-
+    // 2b. Array element logic (|0x01=[8-bit] Mission 1 ...)
+    if (offsets.length === 0 && typeof note.getArrayElement === "function") {
+      const el = note.getArrayElement(contextAddr);
+      if (el) {
+        if (contextSize && contextSize.name && contextSize.name.startsWith("Bit")) {
+          const bitIndex = Number.parseInt(contextSize.name.at(-1), 10);
+          if (!Number.isNaN(bitIndex)) {
+            if (value === 0) {
+              return "false";
+            }
+            if (value === 1) {
+              return ConditionFormatter.parseBitLabelFromText(el.content, bitIndex) || "true";
+            }
+          }
+        }
+        if (el.enum && Number.isInteger(value)) {
+          const m = el.enum.find((e) => e.value === value);
+          if (m) {
+            return m.meaning;
+          }
+        }
+        return ConditionFormatter.parseValueFromText(el.content, value);
+      }
+    }
     // 3. Pointer Traversal Logic
     let targetNode = null;
     let foundNoteContent = null;
@@ -851,7 +874,20 @@ export class ConditionFormatter {
     }
 
     const directNote = ConditionFormatter.getEffectiveNote(notesLookup, targetVal);
-
+    
+    if (directNote && typeof directNote.getArrayElement === "function") {
+      const el = directNote.getArrayElement(targetVal);
+      if (el) {
+        let desc = el.description.replaceAll(/\[.*?\]/g, "").trim();
+        if (desc) {
+          const delta = targetVal - directNote.addr - el.offset;
+          if (delta > 0) {
+            desc += ` +0x${delta.toString(16).toUpperCase()}`;
+          }
+          return desc;
+        }
+      }
+    }
     if (directNote && directNote.noteNodes) {
       const rootNode =
         directNote.noteNodes.find((n) => n.indentLevel === -2) || directNote.noteNodes[0];
