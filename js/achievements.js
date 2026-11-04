@@ -718,6 +718,8 @@ export class CodeNote {
   // Holds the parsed tree structure of the note
   noteNodes = [];
 
+    arrayElements = [];
+
   constructor(addr, note, author) {
     this.addr = +addr;
     this.note = note;
@@ -731,8 +733,49 @@ export class CodeNote {
 
     // Parse the note into a structure tree for the explainer
     this.noteNodes = PointerTreeParser.parseNoteText(this.addressNote);
+    this.arrayElements = CodeNote.parseArrayElements(this.addressNote);
   }
+  
+  // Finds the array element covering an absolute address (or null)
+  getArrayElement(addr) {
+    if (!this.arrayElements.length) {
+      return null;
+    }
+    const delta = addr - this.addr;
+    return this.arrayElements.find((e) => delta >= e.offset && delta < e.offset + e.size) || null;
+  }
+static parseArrayElements(note) {
+    const ELEMENT_RE = /^\s*[|\u2502\u251C\u2514]\s*(0x[0-9a-f]+|\d+)\s*[:=]\s*(.*)$/i;
+    const lines = note.split(/\r\n|\r|\n/);
+    const raw = [];
+    let cur = null;
 
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trimEnd();
+      const m = line.match(ELEMENT_RE);
+      if (m) {
+        const lit = m[1];
+        const offset = lit.toLowerCase().startsWith("0x")
+          ? Number.parseInt(lit, 16)
+          : Number.parseInt(lit, 10);
+        cur = { offset, description: m[2].trim(), lines: [] };
+        raw.push(cur);
+      } else if (cur && line.trim()) {
+        cur.lines.push(line.replace(/^[.+\s\u2500-\u257F]+/, ""));
+      }
+    }
+
+    return raw.map((e) => {
+      const content = e.lines.join("\n");
+      return {
+        offset: e.offset,
+        size: PointerTreeParser.parseSizeFromDescription(e.description),
+        description: e.description,
+        content,
+        enum: CodeNote.parseEnumerations(e.description + "\n" + content),
+      };
+    });
+  }
   static splitGeneralGameNotes(addr, note) {
     const headerMatch = addr === 0 ? note.match(GENERAL_GAME_NOTES_HEADER_PATTERN) : null;
     if (!headerMatch) {
