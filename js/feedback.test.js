@@ -302,6 +302,30 @@ describe("Util: assess_achievement", () => {
   });
 });
 
+describe("Util: array note coverage", () => {
+  for (const [offset, missing] of [
+    [8, false],
+    [56, false],
+    [64, true],
+    [12, true],
+  ]) {
+    it(`checks array offset ${offset} against its record fields and bounds`, () => {
+      current.notes.add(
+        new CodeNote(
+          0x1000,
+          "[32-bit pointer] Root\n+0x00: [4x16 bytes] Records\n+|0x08: [8-bit] State",
+        ),
+      );
+      const address = offset.toString(16).padStart(6, "0");
+      const target = makeAchievement({
+        logic: `I:0xX001000_0xH${address}=1_I:0xX001000_d0xH${address}=0`,
+      });
+      const issues = collectFeedbackNames(assess_achievement(target));
+      expect(issues.filter((name) => name === "MISSING_NOTE")).toHaveLength(missing ? 2 : 0);
+    });
+  }
+});
+
 describe("Util: assess_achievement title case", () => {
   it("given a miscased title, flags TITLE_CASE with the suggestion, the changed words and the converter links", () => {
     const issues = titleCaseIssues("Sit On It!");

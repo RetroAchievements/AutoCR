@@ -1,4 +1,5 @@
 import { ReqType, ConditionFormatter } from "./logic";
+import { NoteKind } from "./note-kind";
 
 // --------------------------------------------------
 // Infrastructure & Basic Processors
@@ -25,18 +26,6 @@ class ProcessorResult {
     this.conditionsConsumed = consumed;
   }
 }
-
-const parseOff = (s) => {
-  let clean = s.replace("+", "").replace("-", "").trim();
-  if (clean.startsWith("0x")) {
-    clean = clean.slice(2);
-  }
-  let v = Number.parseInt(clean, 16);
-  if (s.includes("-")) {
-    v = -v;
-  }
-  return v;
-};
 
 class ExplanationContext {
   group; // Array of Requirements
@@ -305,82 +294,18 @@ class ExplanationContext {
     }
 
     const chainInfo = this.buildChainInfo(index);
-    let targetNode = null;
+    let targetNode = ConditionFormatter.resolveNote(this.notesLookup, addrVal, chainInfo)?.node;
 
-    let baseAddr = addrVal;
-    let offsets = [];
-    if (chainInfo.length > 0) {
-      const baseObj = chainInfo.find((x) => x.type === "base");
-      if (baseObj) {
-        baseAddr = baseObj.value;
-        offsets = chainInfo.filter((x) => x.type === "offset").map((x) => x.value);
-        offsets.push(addrVal);
-      }
-    }
-
-    const note = ConditionFormatter.getEffectiveNote(this.notesLookup, baseAddr);
-
-    if (note) {
-      if (offsets.length === 0) {
-        if (note.noteNodes) {
-          targetNode = note.noteNodes.find((n) => n.indentLevel === -2) || note.noteNodes[0];
-        }
-      } else if (note.noteNodes) {
-        let currentLevelNodes = note.noteNodes.filter(
-          (n) => n.indentLevel !== -2 && (!n.parent || n.parent.indentLevel === -1),
-        );
-
-        for (let i = 0; i < offsets.length; i++) {
-          const off = offsets[i];
-          let match = null;
-          for (const n of currentLevelNodes) {
-            const nOff = parseOff(n.offset);
-            if (off >= nOff && off < nOff + n.size) {
-              match = n;
-              break;
-            }
-          }
-          if (match) {
-            if (i === offsets.length - 1) {
-              targetNode = match;
-            } else {
-              currentLevelNodes = match.children;
-            }
-          } else {
-            break;
-          }
-        }
-      }
-    }
-
-    if (!targetNode && this.rangeCache && offsets.length === 0) {
+    if (!targetNode && this.rangeCache && !chainInfo.length) {
       const match = this.rangeCache.find((r) => addrVal >= r.start && addrVal < r.end);
       if (match && match.node) {
         targetNode = match.node;
       }
     }
 
-    if (targetNode) {
-      return this.parseBitLabelFromContent(targetNode.content, bitIndex);
-    }
-    return "";
-  }
-
-  parseBitLabelFromContent(content, bitIndex) {
-    if (!content) {
-      return "";
-    }
-    const lines = content.split(/\r\n|\r|\n/);
-    // Added |\\- to catch `-` and `|` as delimiters
-    const regex = new RegExp(`^\\s*Bit\\s*${bitIndex}\\s*[:=|\\-]\\s*(.+)`, "i");
-
-    for (const line of lines) {
-      const match = line.match(regex);
-      if (match) {
-        return match[1].trim();
-      }
-    }
-    return "";
+    return targetNode?.kind === NoteKind.VALUE
+      ? (ConditionFormatter.parseBitLabelFromText(targetNode.content, bitIndex) ?? "")
+      : "";
   }
 }
 
@@ -1386,75 +1311,17 @@ class AsciiStringProcessor extends LogicProcessor {
   }
 
   getRawNoteDescription(ctx, addressVal, index) {
-    // 1. Reconstruct Pointer Chain Info
-    const chainInfo = ctx.buildChainInfo(index);
-
-    // 2. Determine Base Address
-    let baseAddr = addressVal;
-    let offsets = [];
-
-    if (chainInfo.length > 0) {
-      const baseObj = chainInfo.find((x) => x.type === "base");
-      if (baseObj) {
-        baseAddr = baseObj.value;
-        offsets = chainInfo.filter((x) => x.type === "offset").map((x) => x.value);
-        // Add the final offset (the address of the current condition)
-        offsets.push(addressVal);
-      }
-    }
-
-    // 3. Get Base Note (with Redirects)
-    const note = ConditionFormatter.getEffectiveNote(ctx.notesLookup, baseAddr);
-    if (!note) {
+    const match = ConditionFormatter.resolveNote(
+      ctx.notesLookup,
+      addressVal,
+      ctx.buildChainInfo(index),
+    );
+    if (!match || match.node.kind !== NoteKind.VALUE) {
       return "";
     }
-
-    // 4. Traverse Node Tree
-    let targetNode = null;
-
-    if (offsets.length === 0) {
-      // Direct Note
-      if (note.noteNodes) {
-        targetNode = note.noteNodes.find((n) => n.indentLevel === -2) || note.noteNodes[0];
-      }
-      if (!targetNode) {
-        return note.note;
-      }
-    } else if (note.noteNodes) {
-      // Pointer Traversal
-      let currentLevelNodes = note.noteNodes.filter(
-        (n) => n.indentLevel !== -2 && (!n.parent || n.parent.indentLevel === -1),
-      );
-
-      for (let i = 0; i < offsets.length; i++) {
-        const off = offsets[i];
-        let match = null;
-
-        for (const n of currentLevelNodes) {
-          const nOff = parseOff(n.offset);
-          if (off >= nOff && off < nOff + n.size) {
-            match = n;
-            break;
-          }
-        }
-
-        if (match) {
-          if (i === offsets.length - 1) {
-            targetNode = match;
-          } else {
-            currentLevelNodes = match.children;
-          }
-        } else {
-          break;
-        }
-      }
-    }
-
-    if (targetNode) {
-      return targetNode.description || targetNode.content || "";
-    }
-
-    return "";
+    return match.node.description === "Full Note"
+      ? match.node.content
+      : match.node.description || match.node.content || "";
   }
 
   processExplicitString(ctx, conditions, index, baseName, forceStringMode) {
