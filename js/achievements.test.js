@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { CodeNote, CodeNoteSet } from "./achievements";
+import { NoteKind } from "./note-kind";
 
 // Parity cases from RAIntegration 1.5.0 ArrayMemoryNoteModel_Tests and PR #37's review.
 const inventory = "[4x16 bytes] Inventory\n|0x00: [32-bit] Item Type\n|0x04: [16-bit] Quantity";
@@ -20,6 +21,25 @@ describe("array code notes", () => {
       expect(note.noteNodes).toHaveLength(2);
       expect(note.contains(0x1000 + size - 1)).toBe(true);
       expect(note.contains(0x1000 + size)).toBe(false);
+    });
+  }
+
+  for (const [header, size, kind, stride] of [
+    ["[double] Value", 8, NoteKind.VALUE, 0],
+    ["[MBF40] Value", 5, NoteKind.VALUE, 0],
+    ["[8 bytes] Record", 8, NoteKind.ARRAY, 8],
+    ["[5 bytes] Record", 5, NoteKind.ARRAY, 5],
+    ["[1x8 bytes] Records", 8, NoteKind.ARRAY, 8],
+    ["[double, 1x8 bytes] Records", 8, NoteKind.ARRAY, 8],
+    ["[8-byte struct] Record", 8, NoteKind.ARRAY, 8],
+    ["[ASCII, 8 bytes] Text", 8, NoteKind.VALUE, 0],
+    ["[4x8 bytes] Pointer records", 32, NoteKind.POINTER, 8],
+  ]) {
+    it(`classifies ${header} without relying solely on byte size`, () => {
+      const note = new CodeNote(0x1000, header);
+      expect(note.size).toBe(size);
+      expect(note.noteNodes[0].kind).toBe(kind);
+      expect(note.noteNodes[0].stride).toBe(stride);
     });
   }
 
@@ -133,7 +153,12 @@ describe("array code notes", () => {
   }
 
   it("does not attach pipe fields to scalar enums or ASCII text", () => {
-    for (const header of ["[8-bit] State", "[ASCII, 16 bytes] Name"]) {
+    for (const header of [
+      "[8-bit] State",
+      "[ASCII, 16 bytes] Name",
+      "[double] Value",
+      "[MBF40] Value",
+    ]) {
       const note = new CodeNote(0, `${header}\n|0x00 = First\n|0x01 = Second`);
       expect(note.noteNodes[0].children).toHaveLength(0);
     }

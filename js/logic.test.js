@@ -90,6 +90,25 @@ describe("array note explanations", () => {
     expect(text).toContain("TEST");
   });
 
+  for (const [header, size] of [
+    ["double", MemSize.DBL32],
+    ["MBF40", MemSize.MBF32],
+  ]) {
+    for (const indirect of [false, true]) {
+      it(`preserves ${header} value labels for ${indirect ? "pointer fields" : "direct notes"}`, () => {
+        const notes = new CodeNoteSet();
+        const field = `[${header}] Value\n1 = Enabled\n1.5 = Half`;
+        notes.add(
+          new CodeNote(0x1000, indirect ? `[32-bit pointer] Root\n+0x08: ${field}` : field),
+        );
+        const address = indirect ? 8 : 0x1000;
+        const chain = indirect ? [{ type: "base", value: 0x1000 }] : [];
+        expect(ConditionFormatter.resolveEnum(1, address, size, notes, chain)).toBe("Enabled");
+        expect(ConditionFormatter.resolveEnum(1.5, address, size, notes, chain)).toBe("Half");
+      });
+    }
+  }
+
   it("preserves ordinary scalar and pointer aliases and enums", () => {
     const notes = new CodeNoteSet();
     notes.add(new CodeNote(0x5000, "[8-bit] Mode\n0 = Off\n1 = On"));

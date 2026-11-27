@@ -509,9 +509,10 @@ class NoteNode {
   constructor(text = "") {
     const header = text.split(/\r\n|\r|\n/, 1)[0];
     const array = PointerTreeParser.arrayLayout(header);
-    this.size = CodeNote.getSize(header)[1];
-    const textNote = !array && /\bascii\b/i.test(header) && this.size > 4;
-    this.stride = textNote ? 0 : (array?.stride ?? (this.size > 4 ? this.size : 0));
+    const [type, size] = CodeNote.getSize(header);
+    this.size = size;
+    const scalar = type !== null || /\bascii\b/i.test(header);
+    this.stride = array?.stride ?? (!scalar && size > 4 ? size : 0);
     this.kind = /ptr|pointer/i.test(header)
       ? NoteKind.POINTER
       : this.stride
