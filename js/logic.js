@@ -1,3 +1,5 @@
+import { NoteKind } from "./note-kind";
+
 export const ReqAddrType = Object.freeze({ VALUE: 0, CURRENT: 1, PAST: 2 });
 
 export const ReqType = Object.freeze({
@@ -513,18 +515,6 @@ class LogicFormatter {
   }
 }
 
-function parseOff(s) {
-  let clean = s.replace("+", "").replace("-", "").trim();
-  if (clean.startsWith("0x")) {
-    clean = clean.slice(2);
-  }
-  let v = Number.parseInt(clean, 16);
-  if (s.includes("-")) {
-    v = -v;
-  }
-  return v;
-}
-
 function parseHex(s) {
   if (typeof s === "number") {
     return s;
@@ -543,9 +533,12 @@ function parseHex(s) {
   return Number.isNaN(val) ? -1 : val;
 }
 
+// Group 1: Hexadecimal target address in the existing 'refer to $0x...' convention.
+const NOTE_REDIRECT = /refer to \$0x([0-9a-fA-F]+)/i;
+
 export class ConditionFormatter {
   // Helper to resolve "refer to $0x..." redirects
-  static getEffectiveNote(notesLookup, addrVal) {
+  static getEffectiveNote(notesLookup, addrVal, followRedirects = true) {
     // Safety check for notesLookup type
     let note = null;
     if (notesLookup && typeof notesLookup.get === "function") {
@@ -557,9 +550,9 @@ export class ConditionFormatter {
 
     let redirects = 0;
 
-    while (note && redirects < 5) {
+    while (followRedirects && note && redirects < 5) {
       const text = note.note || "";
-      const match = text.match(/refer to \$0x([0-9a-fA-F]+)/i);
+      const match = text.match(NOTE_REDIRECT);
 
       if (match) {
         const targetAddr = Number.parseInt(match[1], 16);
@@ -582,6 +575,46 @@ export class ConditionFormatter {
       break;
     }
     return note;
+  }
+
+  // Resolves a direct address or pointer chain to a field, following note redirects.
+  static resolveNote(notesLookup, address, chainInfo = []) {
+    const base = chainInfo.find((part) => part.type === "base");
+    if (chainInfo.length && !base) {
+      return null;
+    }
+    const source = ConditionFormatter.getEffectiveNote(notesLookup, base?.value ?? address, false);
+    if (!source) {
+      return null;
+    }
+    const note = NOTE_REDIRECT.test(source.note || "")
+      ? ConditionFormatter.getEffectiveNote(notesLookup, base?.value ?? address)
+      : source;
+    const offsets = base
+      ? [...chainInfo.filter((part) => part.type === "offset").map((part) => part.value), address]
+      : note.noteNodes[0]?.kind === NoteKind.ARRAY
+        ? [address - source.addr]
+        : [];
+    const match = note.resolve(offsets, base ? base.value - source.addr : null);
+    if (!match) {
+      return null;
+    }
+    if (!base && (note.noteNodes[0]?.kind !== NoteKind.ARRAY || match.node === note.noteNodes[0])) {
+      match.offset = address - source.addr;
+    }
+    return { ...match, note };
+  }
+
+  // Builds a field label, including any byte offset within the field.
+  static fieldAlias(match) {
+    let name = match.node.description.replaceAll(/\[.*?\]/g, "").trim();
+    if (match.offset > 0) {
+      const suffix = ` +0x${match.offset.toString(16).toUpperCase()}`;
+      if (!name.toLowerCase().endsWith(suffix.toLowerCase())) {
+        name += suffix;
+      }
+    }
+    return name;
   }
 
   // Helper: Parse specific value from text (Updated for Floats)
@@ -652,66 +685,12 @@ export class ConditionFormatter {
       return null;
     }
 
-    // 1. Determine Base Address and Offsets
-    let baseAddr = contextAddr;
-    let offsets = [];
-
-    if (chainInfo && chainInfo.length > 0) {
-      const baseObj = chainInfo.find((x) => x.type === "base");
-      if (baseObj) {
-        baseAddr = baseObj.value;
-        offsets = chainInfo.filter((x) => x.type === "offset").map((x) => x.value);
-        offsets.push(contextAddr);
-      }
-    }
-
-    // 2. Get the Base Note
-    const note = ConditionFormatter.getEffectiveNote(notesLookup, baseAddr);
-    if (!note) {
+    const match = ConditionFormatter.resolveNote(notesLookup, contextAddr, chainInfo);
+    if (!match || match.node.kind !== NoteKind.VALUE) {
       return null;
     }
-
-    // 3. Pointer Traversal Logic
-    let targetNode = null;
-    let foundNoteContent = null;
-
-    if (offsets.length === 0) {
-      if (note.noteNodes) {
-        targetNode = note.noteNodes.find((n) => n.indentLevel === -2) || note.noteNodes[0];
-      }
-      if (!targetNode) {
-        foundNoteContent = note.note;
-      }
-    } else if (note.noteNodes) {
-      let currentLevelNodes = note.noteNodes.filter(
-        (n) => n.indentLevel !== -2 && (!n.parent || n.parent.indentLevel === -1),
-      );
-
-      for (let i = 0; i < offsets.length; i++) {
-        const off = offsets[i];
-        let match = null;
-        for (const n of currentLevelNodes) {
-          const nOff = parseOff(n.offset);
-          if (off >= nOff && off < nOff + n.size) {
-            match = n;
-            break;
-          }
-        }
-        if (match) {
-          if (i === offsets.length - 1) {
-            targetNode = match;
-          } else {
-            currentLevelNodes = match.children;
-          }
-        } else {
-          break;
-        }
-      }
-    }
-
-    if (targetNode) {
-      foundNoteContent = targetNode.content;
-    }
+    const note = match.note;
+    const foundNoteContent = match.node.content;
 
     // 4. BITFIELD LOGIC
     if (contextSize && contextSize.name && contextSize.name.startsWith("Bit")) {
@@ -736,7 +715,7 @@ export class ConditionFormatter {
 
     // 5. ENUM LOGIC
     // Only use pre-parsed if not float
-    if (offsets.length === 0 && note.enum && Number.isInteger(value)) {
+    if (!chainInfo.length && note.enum && Number.isInteger(value)) {
       const match = note.enum.find((e) => e.value === value);
       if (match) {
         return match.meaning;
@@ -797,60 +776,22 @@ export class ConditionFormatter {
         const baseNode = chainStack.shift();
         const baseAddrNum = parseHex(LogicFormatter.normalizeAddress(baseNode.value));
 
-        const baseNote = ConditionFormatter.getEffectiveNote(notesLookup, baseAddrNum);
-
-        if (baseNote && baseNote.noteNodes) {
-          let currentLevelNodes = baseNote.noteNodes.filter(
-            (n) => n.indentLevel !== -2 && (!n.parent || n.parent.indentLevel === -1),
-          );
-          let chainValid = true;
-
-          while (chainStack.length > 0) {
-            const offsetNode = chainStack.shift();
-            const offsetVal = parseHex(LogicFormatter.normalizeAddress(offsetNode.value));
-            let match = null;
-            for (const node of currentLevelNodes) {
-              let nodeOff = parseHex(node.offset.replace("+", "").replace("-", ""));
-              if (node.offset.includes("-")) {
-                nodeOff = -nodeOff;
-              }
-              if (offsetVal >= nodeOff && offsetVal < nodeOff + node.size) {
-                match = node;
-                break;
-              }
-            }
-            if (match) {
-              currentLevelNodes = match.children;
-            } else {
-              chainValid = false;
-              break;
-            }
-          }
-
-          if (chainValid && targetVal !== -1) {
-            for (const node of currentLevelNodes) {
-              let nodeOff = parseHex(node.offset.replace("+", "").replace("-", ""));
-              if (node.offset.includes("-")) {
-                nodeOff = -nodeOff;
-              }
-              if (targetVal >= nodeOff && targetVal < nodeOff + node.size) {
-                let desc = node.description.replaceAll(/\[.*?\]/g, "").trim();
-                const delta = targetVal - nodeOff;
-                if (delta > 0) {
-                  const suffix = ` +0x${delta.toString(16).toUpperCase()}`;
-                  if (!desc.toLowerCase().endsWith(suffix.toLowerCase())) {
-                    desc += suffix;
-                  }
-                }
-                return desc;
-              }
-            }
-          }
+        const chain = [
+          { type: "base", value: baseAddrNum },
+          ...chainStack.map((part) => ({ type: "offset", value: parseHex(part.value) })),
+        ];
+        const match = ConditionFormatter.resolveNote(notesLookup, targetVal, chain);
+        if (match) {
+          return ConditionFormatter.fieldAlias(match);
         }
       }
     }
 
-    const directNote = ConditionFormatter.getEffectiveNote(notesLookup, targetVal);
+    const directMatch = ConditionFormatter.resolveNote(notesLookup, targetVal);
+    const directNote = directMatch?.note;
+    if (directNote && directMatch.node !== directNote.noteNodes[0]) {
+      return ConditionFormatter.fieldAlias(directMatch);
+    }
 
     if (directNote && directNote.noteNodes) {
       const rootNode =
@@ -872,7 +813,7 @@ export class ConditionFormatter {
           .trim();
 
         // Calculate offset from base note address for direct notes
-        const delta = targetVal - directNote.addr;
+        const delta = directMatch.offset;
         if (delta > 0) {
           const suffix = ` +0x${delta.toString(16).toUpperCase()}`;
           if (!desc.toLowerCase().endsWith(suffix.toLowerCase())) {
